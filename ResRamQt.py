@@ -913,8 +913,8 @@ class SpectrumApp(QMainWindow):
             for l in np.arange(len(wg)):
                 raman_spec[:, i] += np.real((raman_cross[l, rp])) * \
                     (1/np.pi)*(0.5*res)/((rshift-wg[l])**2+(0.5*res)**2)
-            self.ax2.plot(rshift, np.real((raman_spec)[:, i]), label=str(
-                1e7/rpumps[i])+' nm laser')  # plot raman spectrum
+            nm = 1e7/rpumps[i]
+            self.ax2.plot(rshift, np.real((raman_spec)[:, i]), label=f'{nm:3f} nm laser')  # plot raman spectrum
         self.ax2.set_title('Raman Spectra')
         self.ax2.set_xlim(raman_xmin, raman_xmax)
         self.ax2.set_xlabel('Raman Shift (cm-1)')
@@ -946,7 +946,7 @@ class SpectrumApp(QMainWindow):
             if plot_switch[j] == 1:
                 color = cmap(j)
                 self.ax.plot(convEL, np.real(np.transpose(raman_cross))[
-                             :, j], color=color, label=str(wg[j])+" cm-1")
+                             :, j], color=color, label=f'{wg[j]:2f} cm-1')
         self.ax.set_title('Raman Excitation Profiles')
         self.ax.set_xlim(profs_xmin, profs_xmax)
         self.ax.set_xlabel('Wavenumber (cm-1)')
