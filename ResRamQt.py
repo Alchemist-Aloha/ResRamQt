@@ -765,9 +765,9 @@ class SpectrumApp(QMainWindow):
         self.table_widget.itemChanged.disconnect(self.update_data)
 
         for row in range(len(delta)):
-            label = QTableWidgetItem("delta@"+str(wg[row])+" cm-1")
+            label = QTableWidgetItem(f"delta@{wg[row]:.3f} cm-1")
             self.table_widget.setItem(
-                row, 1, QTableWidgetItem(str(delta[row])))
+                row, 1, QTableWidgetItem(f"{delta[row]:.2f}"))
             self.table_widget.setItem(row, 0, label)
         self.table_widget.setItem(len(delta), 0, QTableWidgetItem("gamma"))
         self.table_widget.setItem(len(delta), 1, QTableWidgetItem(str(gamma)))
@@ -914,7 +914,7 @@ class SpectrumApp(QMainWindow):
                 raman_spec[:, i] += np.real((raman_cross[l, rp])) * \
                     (1/np.pi)*(0.5*res)/((rshift-wg[l])**2+(0.5*res)**2)
             nm = 1e7/rpumps[i]
-            self.ax2.plot(rshift, np.real((raman_spec)[:, i]), label=f'{nm:3f} nm laser')  # plot raman spectrum
+            self.ax2.plot(rshift, np.real((raman_spec)[:, i]), label=f'{nm:.3f} nm laser')  # plot raman spectrum
         self.ax2.set_title('Raman Spectra')
         self.ax2.set_xlim(raman_xmin, raman_xmax)
         self.ax2.set_xlabel('Raman Shift (cm-1)')
@@ -946,7 +946,7 @@ class SpectrumApp(QMainWindow):
             if plot_switch[j] == 1:
                 color = cmap(j)
                 self.ax.plot(convEL, np.real(np.transpose(raman_cross))[
-                             :, j], color=color, label=f'{wg[j]:2f} cm-1')
+                             :, j], color=color, label=f'{wg[j]:.2f} cm-1')
         self.ax.set_title('Raman Excitation Profiles')
         self.ax.set_xlim(profs_xmin, profs_xmax)
         self.ax.set_xlabel('Wavenumber (cm-1)')
@@ -976,8 +976,8 @@ class SpectrumApp(QMainWindow):
         self.table_widget.setHorizontalHeaderLabels(
             ["Variables", "Values", "Plot Raman \nEx. Profile", "Fit?"])
         for row in range(len(delta)):
-            item = QTableWidgetItem(str(delta[row]))
-            label = QTableWidgetItem("delta@"+str(wg[row])+" cm-1")
+            item = QTableWidgetItem(f"{delta[row]:.3f}")
+            label = QTableWidgetItem(f"delta@{wg[row]:.2f} cm-1")
             self.table_widget.setItem(row, 0, label)
             self.table_widget.setItem(row, 1, item)
             self.table_widget.setItem(row, 2, QTableWidgetItem("1"))
@@ -1140,8 +1140,8 @@ class SpectrumApp(QMainWindow):
         load("freqs.dat", "deltas.dat", "rpumps.dat",
              "inp.txt", "abs_exp.dat", "profs_exp.dat")
         for row in range(len(delta)):
-            item = QTableWidgetItem(str(delta[row]))
-            label = QTableWidgetItem("delta@"+str(wg[row])+" cm-1")
+            item = QTableWidgetItem(f"{delta[row]:.3f}")
+            label = QTableWidgetItem(f"delta@{wg[row]:2f} cm-1")
             self.table_widget.setItem(row, 0, label)
             self.table_widget.setItem(row, 1, item)
             self.table_widget.setItem(row, 2, QTableWidgetItem("1"))
