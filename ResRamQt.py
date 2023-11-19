@@ -228,11 +228,6 @@ def boltz_states():
     return states, boltz_dist/norm, dos_energy
 
 
-# np.set_printoptions(threshold=sys.maxsize)
-
-# warnings.filterwarnings('ignore') # Supresses 'casting to real discards complex part' warning
-
-
 def g(t):
     D = gamma*(1+0.85*k+0.88*k**2)/(2.355+1.76*k)  # D parameter
     L = k*D  # LAMBDA parameter
