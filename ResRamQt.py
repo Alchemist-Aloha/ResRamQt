@@ -15,7 +15,6 @@ import lmfit
 
 dir = ''
 
-
 def load(freqs_inp, delta_inp, rpumps_inp, inp_inp, abs_exp_inp, profs_exp_inp):
     global ntime, EL_reach, cmap, ts, abs_exp, profs_exp, wg, we, delta, convEL
     global theta, D, L, M, E0, th, EL, tm, tp, E0_range, gamma, k, beta, eta, S
