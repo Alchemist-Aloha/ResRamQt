@@ -6,6 +6,10 @@ tests/resources/PE2017
 
 #data output files
 *_data/
+
+#deprecated
+deprecated/
+
 # Dask
 dask-worker-space/
 
