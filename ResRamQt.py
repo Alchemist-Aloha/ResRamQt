@@ -9,7 +9,6 @@ import os
 from math import factorial
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib as mpl
 from matplotlib.colors import ListedColormap
 import lmfit
 
