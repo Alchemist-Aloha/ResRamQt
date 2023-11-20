@@ -215,9 +215,6 @@ class load_input():
         np.reshape(states, -1, len(cutoff))
 
         return states, boltz_dist/norm, dos_energy
-        
-
-
 
 def g(t,obj):
     # Calculate parameters D and L based on obj attributes
@@ -227,8 +224,6 @@ def g(t,obj):
     g = ((obj.D/obj.L)**2)*(obj.L*t-1+np.exp(-obj.L*t))+1j*((obj.beta*obj.D**2)/(2*obj.L))*(1-np.exp(-obj.L*t))
     # g = p.gamma*np.abs(t)#
     return g
-
-
 
 def A(t,obj):
     # K=np.zeros((len(p.wg),len(t)),dtype=complex)
@@ -244,8 +239,6 @@ def A(t,obj):
     # Calculate the function A based on the K matrix
     A = obj.M**2*np.exp(-np.sum(K, axis=0))
     return A
-
-
 
 def R(t1, t2,obj):
     # Initialize Ra and R arrays for calculations
@@ -275,7 +268,6 @@ def R(t1, t2,obj):
                         1-np.exp(1j*wg*t2)))**(a+l))*(eta*S*(1-np.exp(1j*wg*t1))*(1-np.exp(-1j*wg*t2)))**(a)
                 R[idxq, idxl, :] = np.sum(Ra[:, idxq, idxl, :], axis=0)
     return np.prod(R, axis=1)
-
 
 def cross_sections(obj):
     sqrt2 = np.sqrt(2)
@@ -367,7 +359,6 @@ def cross_sections(obj):
     # exit()
 
     return abs_cross, fl_cross, raman_cross, obj.boltz_state, obj.boltz_coef
-
 
 def run_save(obj):
     #global current_time_str
@@ -517,8 +508,6 @@ def raman_residual(param,fit_obj):
     #print(loss)
     return loss, total_sigma, 300*(1-correlation)
 
-
-
 def param_init(fit_switch, obj = None):
     if obj is None:
         obj = load_input()
@@ -556,7 +545,6 @@ def param_init(fit_switch, obj = None):
 
     #print("Initial parameters: "+ str(params_lmfit))
     return params_lmfit
-
 
 class resram_data:
     def __init__(self, input):
@@ -641,12 +629,9 @@ class resram_data:
             print("no experimental absorption data")
         self.fig_abs.show()
 
-
-
 class WorkerSignals(QObject):
     result_ready = pyqtSignal(str)
     finished = pyqtSignal(object)
-
 
 class Worker(QRunnable):
     def __init__(self,obj_load, tolerance,maxnfev,fit_alg,fit_switch):
@@ -690,7 +675,6 @@ class Worker(QRunnable):
         print("Fit done\n")
         self.signals.result_ready.emit("Fit done")
         self.signals.finished.emit(self.obj_load)
-
 
 class SpectrumApp(QMainWindow):
     def __init__(self):
