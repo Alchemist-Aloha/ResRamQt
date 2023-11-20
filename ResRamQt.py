@@ -280,6 +280,7 @@ def R(t1, t2,obj):
 
 def cross_sections(obj):
     sqrt2 = np.sqrt(2)
+    obj.S = (obj.delta**2)/2  # calculate in cross_sections()
     obj.EL = np.linspace(obj.E0-obj.EL_reach, obj.E0+obj.EL_reach, 1000)  # range for spectra cm^-1
     q_r = np.ones((len(obj.wg), len(obj.wg), len(obj.th)), dtype=complex)
     K_r = np.zeros((len(obj.wg), len(obj.EL), len(obj.th)), dtype=complex)
@@ -513,9 +514,9 @@ def raman_residual(param,fit_obj):
 
     total_sigma = np.sum(sigma)
     #print("Total Raman sigma is "+ str(total_sigma))
-    loss= total_sigma - 500*(correlation - 1)
+    loss= total_sigma - 300*(correlation - 1)
     #print(loss)
-    return loss, total_sigma, 500*(1-correlation)
+    return loss, total_sigma, 300*(1-correlation)
 
 
 
@@ -829,8 +830,8 @@ class SpectrumApp(QMainWindow):
             len(self.obj_load.delta)+5, 1).text())  # E00 parameter
         self.fit_switch[len(
             self.obj_load.delta)+5] = int(float(self.table_widget.item(len(self.obj_load.delta)+5, 3).text()))
-        self.obj_loadts = float(self.table_widget.item(len(self.obj_load.delta)+6, 1).text())
-        self.obj_loadntime = float(self.table_widget.item(len(self.obj_load.delta)+7, 1).text())
+        self.obj_load.ts = float(self.table_widget.item(len(self.obj_load.delta)+6, 1).text())
+        self.obj_load.ntime = float(self.table_widget.item(len(self.obj_load.delta)+7, 1).text())
 
         self.fit_alg = self.table_widget.item(
             len(self.obj_load.delta)+8, 1).text()  # fitting algorithm
