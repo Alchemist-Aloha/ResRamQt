@@ -1,6 +1,7 @@
 tests/resources/PE2017
 build/
 dist/
+old/
 # Do not ship old c_matrix*.c files, due to
 # compatibility problems with newer numpy versions
 *.c
