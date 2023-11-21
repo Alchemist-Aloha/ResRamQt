@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import QMessageBox, QLabel, QFileDialog, QCheckBox, QTextBr
 from PyQt5.QtGui import *
 from PyQt5 import QtGui
 import pyqtgraph as pg
-from pyqtgraph.Qt import QtCore, QtGui
+from pyqtgraph.Qt import QtGui
 import sys
 from datetime import datetime
 import os
@@ -747,9 +747,9 @@ class SpectrumApp(QMainWindow):
         self.table_widget.itemChanged.disconnect(self.update_data)
 
         for row in range(len(self.obj_load.delta)):
-            label = QTableWidgetItem(f"delta@{self.obj_load.wg[row]:.3f} cm-1")
+            label = QTableWidgetItem(f"delta@{self.obj_load.wg[row]:.2f} cm-1")
             self.table_widget.setItem(
-                row, 1, QTableWidgetItem(f"{self.obj_load.delta[row]:.2f}"))
+                row, 1, QTableWidgetItem(f"{self.obj_load.delta[row]}"))
             self.table_widget.setItem(row, 0, label)
         self.table_widget.setItem(len(self.obj_load.delta), 0, QTableWidgetItem("gamma"))
         self.table_widget.setItem(len(self.obj_load.delta), 1, QTableWidgetItem(str(self.obj_load.gamma)))
@@ -774,12 +774,12 @@ class SpectrumApp(QMainWindow):
         self.table_widget.setItem(
             len(self.obj_load.delta)+7, 1, QTableWidgetItem(str(self.obj_load.ntime)))
         self.table_widget.setItem(
-            len(self.obj_load.delta)+17, 0, QTableWidgetItem("Temp (K)"))
-        self.table_widget.setItem(len(self.obj_load.delta)+17, 1, QTableWidgetItem(str(self.obj_load.T)))
+            len(self.obj_load.delta)+11, 0, QTableWidgetItem("Temp (K)"))
+        self.table_widget.setItem(len(self.obj_load.delta)+11, 1, QTableWidgetItem(str(self.obj_load.T)))
         self.table_widget.setItem(
-            len(self.obj_load.delta)+18, 0, QTableWidgetItem("Raman maxcalc"))
+            len(self.obj_load.delta)+12, 0, QTableWidgetItem("Raman maxcalc"))
         self.table_widget.setItem(
-            len(self.obj_load.delta)+18, 1, QTableWidgetItem(str(self.obj_load.raman_maxcalc)))
+            len(self.obj_load.delta)+12, 1, QTableWidgetItem(str(self.obj_load.raman_maxcalc)))
         self.table_widget.itemChanged.connect(self.update_data)
         self.update_spectrum()
 
@@ -819,14 +819,8 @@ class SpectrumApp(QMainWindow):
             len(self.obj_load.delta)+9, 1).text())  # max fitting steps
         self.tolerance = float(self.table_widget.item(
             len(self.obj_load.delta)+10, 1).text())  # fitting tolerance
-        self.raman_xmin = float(self.table_widget.item(len(self.obj_load.delta)+11, 1).text())
-        self.raman_xmax = float(self.table_widget.item(len(self.obj_load.delta)+12, 1).text())
-        self.profs_xmin = float(self.table_widget.item(len(self.obj_load.delta)+13, 1).text())
-        self.profs_xmax = float(self.table_widget.item(len(self.obj_load.delta)+14, 1).text())
-        self.abs_xmin = float(self.table_widget.item(len(self.obj_load.delta)+15, 1).text())
-        self.abs_xmax = float(self.table_widget.item(len(self.obj_load.delta)+16, 1).text())
-        self.obj_load.T = float(self.table_widget.item(len(self.obj_load.delta)+17, 1).text())
-        self.obj_load.raman_maxcalc = float(self.table_widget.item(len(self.obj_load.delta)+18, 1).text())
+        self.obj_load.T = float(self.table_widget.item(len(self.obj_load.delta)+11, 1).text())
+        self.obj_load.raman_maxcalc = float(self.table_widget.item(len(self.obj_load.delta)+12, 1).text())
 
     def clear_canvas(self):
         if self.canvas is not None:
@@ -980,12 +974,6 @@ class SpectrumApp(QMainWindow):
             len(self.obj_load.delta)+9, 1).text())  # max fitting steps
         self.tolerance = float(self.table_widget.item(
             len(self.obj_load.delta)+10, 1).text())  # fitting tolerance
-        self.raman_xmin = float(self.table_widget.item(len(self.obj_load.delta)+11, 1).text())
-        self.raman_xmax = float(self.table_widget.item(len(self.obj_load.delta)+12, 1).text())
-        self.profs_xmin = float(self.table_widget.item(len(self.obj_load.delta)+13, 1).text())
-        self.profs_xmax = float(self.table_widget.item(len(self.obj_load.delta)+14, 1).text())
-        self.abs_xmin = float(self.table_widget.item(len(self.obj_load.delta)+15, 1).text())
-        self.abs_xmax = float(self.table_widget.item(len(self.obj_load.delta)+16, 1).text())
         # Set headers to resize to contents
         self.table_widget.horizontalHeader().setSectionResizeMode(
             0, QHeaderView.ResizeToContents)
@@ -1079,8 +1067,8 @@ class SpectrumApp(QMainWindow):
     def obj2table(self):
         self.table_widget.itemChanged.disconnect(self.update_data)        
         for row in range(len(self.obj_load.delta)):
-            item = QTableWidgetItem(f"{self.obj_load.delta[row]:.3f}")
-            label = QTableWidgetItem(f"delta@{self.obj_load.wg[row]:2f} cm-1")
+            item = QTableWidgetItem(f"{self.obj_load.delta[row]:.2f}")
+            label = QTableWidgetItem(f"delta@{self.obj_load.wg[row]} cm-1")
             self.table_widget.setItem(row, 0, label)
             self.table_widget.setItem(row, 1, item)
             self.table_widget.setItem(row, 2, QTableWidgetItem("1"))
@@ -1129,35 +1117,17 @@ class SpectrumApp(QMainWindow):
         self.table_widget.setItem(
             len(self.obj_load.delta)+10, 1, QTableWidgetItem("0.00000001"))
         self.table_widget.setItem(
-            len(self.obj_load.delta)+11, 0, QTableWidgetItem("Raman xmin"))
-        self.table_widget.setItem(len(self.obj_load.delta)+11, 1, QTableWidgetItem("200"))
+            len(self.obj_load.delta)+11, 0, QTableWidgetItem("Temp (K)"))
         self.table_widget.setItem(
-            len(self.obj_load.delta)+12, 0, QTableWidgetItem("Raman xmax"))
-        self.table_widget.setItem(len(self.obj_load.delta)+12, 1, QTableWidgetItem("1700"))
+            len(self.obj_load.delta)+11, 1, QTableWidgetItem(str(self.obj_load.inp[13])))
         self.table_widget.setItem(
-            len(self.obj_load.delta)+13, 0, QTableWidgetItem("Exci. Prof. xmin"))
-        self.table_widget.setItem(len(self.obj_load.delta)+13, 1, QTableWidgetItem("15000"))
+            len(self.obj_load.delta)+12, 0, QTableWidgetItem("Raman maxcalc"))
         self.table_widget.setItem(
-            len(self.obj_load.delta)+14, 0, QTableWidgetItem("Exci. Prof. xmax"))
-        self.table_widget.setItem(len(self.obj_load.delta)+14, 1, QTableWidgetItem("22500"))
-        self.table_widget.setItem(
-            len(self.obj_load.delta)+15, 0, QTableWidgetItem("Abs/FL xmin"))
-        self.table_widget.setItem(len(self.obj_load.delta)+15, 1, QTableWidgetItem("12000"))
-        self.table_widget.setItem(
-            len(self.obj_load.delta)+16, 0, QTableWidgetItem("Abs/Fl xmax"))
-        self.table_widget.setItem(len(self.obj_load.delta)+16, 1, QTableWidgetItem("23000"))
-        self.table_widget.setItem(
-            len(self.obj_load.delta)+17, 0, QTableWidgetItem("Temp (K)"))
-        self.table_widget.setItem(
-            len(self.obj_load.delta)+17, 1, QTableWidgetItem(str(self.obj_load.inp[13])))
-        self.table_widget.setItem(
-            len(self.obj_load.delta)+18, 0, QTableWidgetItem("Raman maxcalc"))
-        self.table_widget.setItem(
-            len(self.obj_load.delta)+18, 1, QTableWidgetItem(str(self.obj_load.inp[10])))
+            len(self.obj_load.delta)+12, 1, QTableWidgetItem(str(self.obj_load.inp[10])))
         self.table_widget.itemChanged.connect(self.update_data)
 
 
-    def update_data(self):#No use
+    def update_data(self):
         # Update the selected row in the table
         selected_rows = self.table_widget.selectionModel().selectedRows()
         for index in selected_rows:
