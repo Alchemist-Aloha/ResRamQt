@@ -1,9 +1,7 @@
 from PyQt5.QtCore import Qt, QThreadPool, pyqtSlot, QRunnable, pyqtSignal, QTimer, QObject
 from PyQt5.QtWidgets import QMessageBox, QLabel, QFileDialog, QCheckBox, QTextBrowser, QHeaderView, QApplication, QMainWindow, QVBoxLayout, QWidget, QTableWidget, QTableWidgetItem, QPushButton, QHBoxLayout, QSpacerItem, QSizePolicy
 from PyQt5.QtGui import *
-from PyQt5 import QtGui
 import pyqtgraph as pg
-from pyqtgraph.Qt import QtGui
 import sys
 from datetime import datetime
 import os
@@ -744,7 +742,7 @@ class SpectrumApp(QMainWindow):
         self.showMaximized()
 
     def sendto_table(self):
-        self.table_widget.itemChanged.disconnect(self.update_data)
+        self.table_widget.itemChanged.disconnect(self.update_spectrum)
 
         for row in range(len(self.obj_load.delta)):
             label = QTableWidgetItem(f"delta@{self.obj_load.wg[row]:.2f} cm-1")
@@ -780,7 +778,7 @@ class SpectrumApp(QMainWindow):
             len(self.obj_load.delta)+12, 0, QTableWidgetItem("Raman maxcalc"))
         self.table_widget.setItem(
             len(self.obj_load.delta)+12, 1, QTableWidgetItem(str(self.obj_load.raman_maxcalc)))
-        self.table_widget.itemChanged.connect(self.update_data)
+        self.table_widget.itemChanged.connect(self.update_spectrum)
         self.update_spectrum()
 
     def load_table(self):        
@@ -964,7 +962,7 @@ class SpectrumApp(QMainWindow):
         self.table_widget.setRowCount(len(self.obj_load.delta)+19)
         self.table_widget.setHorizontalHeaderLabels(
             ["Variables", "Values", "Plot Raman \nEx. Profile", "Fit?"])
-        self.table_widget.itemChanged.connect(self.update_data)
+        self.table_widget.itemChanged.connect(self.update_spectrum)
         self.obj2table()
         print("Initialized. Files loaded from the working folder.")
         #initialize parameters for ResRam Gui only
@@ -1040,6 +1038,7 @@ class SpectrumApp(QMainWindow):
         # Clear the previous series data
         self.plot_data()
 
+    '''
     def add_data(self):#no use
         # Add a new row to the table
         row_position = self.table_widget.rowCount()
@@ -1048,6 +1047,7 @@ class SpectrumApp(QMainWindow):
             row_position, 0, QTableWidgetItem("New Data"))
         self.table_widget.setItem(row_position, 1, QTableWidgetItem("0.0"))
         self.update_spectrum()
+        '''
 
     def save_data(self):
         run_save(self.obj_load)
@@ -1065,7 +1065,7 @@ class SpectrumApp(QMainWindow):
         self.dirlabel.setText("Current data folder: /"+self.dir)
         
     def obj2table(self):
-        self.table_widget.itemChanged.disconnect(self.update_data)        
+        self.table_widget.itemChanged.disconnect(self.update_spectrum)        
         for row in range(len(self.obj_load.delta)):
             item = QTableWidgetItem(f"{self.obj_load.delta[row]:.2f}")
             label = QTableWidgetItem(f"delta@{self.obj_load.wg[row]} cm-1")
@@ -1124,10 +1124,11 @@ class SpectrumApp(QMainWindow):
             len(self.obj_load.delta)+12, 0, QTableWidgetItem("Raman maxcalc"))
         self.table_widget.setItem(
             len(self.obj_load.delta)+12, 1, QTableWidgetItem(str(self.obj_load.inp[10])))
-        self.table_widget.itemChanged.connect(self.update_data)
+        self.table_widget.itemChanged.connect(self.update_spectrum)
 
 
-    def update_data(self):
+    '''
+    def update_data(self):#nouse
         # Update the selected row in the table
         selected_rows = self.table_widget.selectionModel().selectedRows()
         for index in selected_rows:
@@ -1135,12 +1136,14 @@ class SpectrumApp(QMainWindow):
             value = float(self.table_widget.item(index.row(), 1).text())
             # You can edit the name and value here as needed
         self.update_spectrum()
+        '''
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key_F5:
             self.update_spectrum()
             
 
+'''
 class OutputWidget(QTextBrowser):#Not compatible with qrunner. 
     def __init__(self):
         super().__init__()
@@ -1150,6 +1153,7 @@ class OutputWidget(QTextBrowser):#Not compatible with qrunner.
         # Append the text to the output panel
         self.insertPlainText(text)
         self.ensureCursorVisible()  # Scroll to the latest text
+        '''
         
 def exception_hook(exctype, value, traceback):
     """
@@ -1164,7 +1168,7 @@ def main():
     app = QApplication(sys.argv)
     # Set the custom exception hook
     sys.excepthook = exception_hook
-    app.setWindowIcon(QtGui.QIcon('ico.ico'))
+    app.setWindowIcon(QIcon('ico.ico'))
     window = SpectrumApp()
     window.show()
     sys.exit(app.exec_())
