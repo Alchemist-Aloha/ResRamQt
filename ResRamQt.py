@@ -275,6 +275,8 @@ def cross_sections(obj):
     # Calculate parameters D and L based on obj attributes
     obj.D = obj.gamma*(1+0.85*obj.k+0.88*obj.k**2)/(2.355+1.76*obj.k)  # D parameter
     obj.L = obj.k*obj.D  # LAMBDA parameter
+    obj.convEL = np.linspace(obj.E0-obj.EL_reach*0.5, obj.E0+obj.EL_reach*0.5,
+                                (max(len(obj.E0_range), len(obj.EL))-min(len(obj.E0_range), len(obj.EL))+1))
     q_r = np.ones((len(obj.wg), len(obj.wg), len(obj.th)), dtype=complex)
     K_r = np.zeros((len(obj.wg), len(obj.EL), len(obj.th)), dtype=complex)
     # elif p.order > 1:
@@ -498,12 +500,18 @@ def raman_residual(param,fit_obj):
         fit_obj.profs_exp = np.reshape(fit_obj.profs_exp,(-1,1))
         #print("Raman cross section expt is converted to a 2D array")
     sigma = np.zeros_like(fit_obj.delta)
-    for i in range(len(fit_obj.rpumps)):
+    #calculate sum of rmsd for each pump wavelength
+    '''for i in range(len(fit_obj.rpumps)):
     
         for j in range(len(fit_obj.wg)):
             #print(j,i)
-            sigma[j] = sigma[j] + (1e7*(np.real(raman_cross[j,fit_obj.rp[i]])-fit_obj.profs_exp[j,i]))**2
+            sigma[j] += (1e7*(np.real(raman_cross[j,fit_obj.rp[i]])-fit_obj.profs_exp[j,i]))**2
+            '''
+    # Calculate the intermediate expression in vectorized form
+    intermediate = 1e7 * (np.real(raman_cross[:, fit_obj.rp]) - fit_obj.profs_exp)**2
 
+    # Perform the summation across axis 1 (equivalent to the nested loop)
+    sigma += intermediate.sum(axis=1)
 
     total_sigma = np.sum(sigma)
     #print("Total Raman sigma is "+ str(total_sigma))
@@ -653,11 +661,6 @@ class Worker(QRunnable):
         params_lmfit = param_init(self.fit_switch,self.obj_load)
         
         print("Fit is running, please wait...\n")
-        # raman_residual(params_lmfit)
-        # notice = QMessageBox()
-        # notice.setText("Fit is running, please wait...")
-        # notice.setStandardButtons(QMessageBox.NoButton) #No button needed
-        # notice.exec_()
         fit_kws = dict(tol=self.tolerance)
         try:
             result = lmfit.minimize(raman_residual, params_lmfit, args=(self.obj_load,), method=self.fit_alg,
@@ -717,8 +720,24 @@ class SpectrumApp(QMainWindow):
             '''
         # Initialize PlotWidgets
         self.canvas = pg.PlotWidget()# fig profs
+        self.canvas.addLegend(colCount=2)
+        self.canvas.setTitle('Raman Excitation Profiles')
+        #self.ax.set_xlim(self.profs_xmin, self.profs_xmax)
+        self.canvas.setLabel('bottom','Wavenumber (cm-1)')
+        self.canvas.setLabel('left','Raman Cross Section \n(1e-14 Angstrom**2/Molecule)')
         self.canvas2 = pg.PlotWidget()# fig raman spec
+        self.canvas2.addLegend(offset=(-30,30))
+        self.canvas2.setTitle('Raman Spectra')
+        #self.canvas2.set_xlim(self.raman_xmin, self.raman_xmax)
+        self.canvas2.setLabel('bottom','Raman Shift (cm-1)')
+        self.canvas2.setLabel('left','Raman Cross Section \n(1e-14 Angstrom**2/Molecule)')
         self.canvas3 = pg.PlotWidget()# fig abs
+        self.canvas3.addLegend()
+        self.canvas3.setTitle('Absorption and Emission Spectra')
+        #self.ax3.set_xlim(self.abs_xmin, self.abs_xmax)
+        self.canvas3.setLabel('bottom','Wavenumber (cm-1)')
+        self.canvas3.setLabel('left','Cross Section \n(1e-14 Angstrom**2/Molecule)')
+        #self.ax3.set_ylabel('Cross Section \n(1e-14 Angstrom**2/Molecule)')
         self.canvas.setBackground('white')
         self.canvas2.setBackground('white')
         self.canvas3.setBackground('white')
@@ -786,11 +805,10 @@ class SpectrumApp(QMainWindow):
         self.table_widget.setItem(
             len(self.obj_load.delta)+12, 1, QTableWidgetItem(str(self.obj_load.raman_maxcalc)))
         self.table_widget.itemChanged.connect(self.update_spectrum)
-        self.update_spectrum()
+        self.plot_data()
 
     
     def load_table(self):        
-        
         for i in range(len(self.obj_load.delta)):
             self.obj_load.delta[i] = float(self.table_widget.item(i, 1).text())
             self.plot_switch[i] = int(float(self.table_widget.item(i, 2).text()))
@@ -818,7 +836,19 @@ class SpectrumApp(QMainWindow):
             self.obj_load.delta)+5] = int(float(self.table_widget.item(len(self.obj_load.delta)+5, 3).text()))
         self.obj_load.ts = float(self.table_widget.item(len(self.obj_load.delta)+6, 1).text())
         self.obj_load.ntime = float(self.table_widget.item(len(self.obj_load.delta)+7, 1).text())
-
+        
+        ## Update Time range ##
+        self.obj_load.UB_time = self.obj_load.ntime*self.obj_load.ts  # Upper bound in time range
+        self.obj_load.t = np.linspace(0, self.obj_load.UB_time, int(
+            self.obj_load.ntime))  # time range in ps
+        self.obj_load.th = np.array(self.obj_load.t/self.obj_load.hbar)  # t/hbar
+        self.obj_load.ntime_rot = self.obj_load.ntime/np.sqrt(2)
+        self.obj_load.ts_rot = self.obj_load.ts/np.sqrt(2)
+        self.obj_load.UB_time_rot = self.obj_load.ntime_rot*self.obj_load.ts_rot
+        self.obj_load.tp = np.linspace(0, self.obj_load.UB_time_rot, int(self.obj_load.ntime_rot))
+        self.obj_load.tm = None
+        self.obj_load.tm = np.append(-np.flip(self.obj_load.tp[1:], axis=0), self.obj_load.tp)   
+             
         self.fit_alg = self.table_widget.item(
             len(self.obj_load.delta)+8, 1).text()  # fitting algorithm
         self.maxnfev = int(self.table_widget.item(
@@ -839,7 +869,7 @@ class SpectrumApp(QMainWindow):
             self.canvas3.clear()  # Redraw the canvas to clear it
 
     def start_update_timer(self):
-        self.update_timer.start(1000)  # 1 seconds (in milliseconds)
+        self.update_timer.start(3000)  # 1 seconds (in milliseconds)
 
     def stop_update_timer(self):
         self.update_timer.stop()
@@ -879,28 +909,21 @@ class SpectrumApp(QMainWindow):
     
     def plot_data(self):
         self.clear_canvas()
-        self.load_table()
-        
-        #self.cmap = self.cm.getLookupTable(nPts=len(self.obj_load.wg))
+        #self.load_table()
         abs_cross, fl_cross, raman_cross, boltz_states, boltz_coef = cross_sections(self.obj_load)
         raman_spec = np.zeros((len(self.obj_load.rshift), len(self.obj_load.rpumps)))
-        self.canvas2.addLegend(offset=(-30,30))
+        
         for i in range(len(self.obj_load.rpumps)):
             for l in np.arange(len(self.obj_load.wg)):
                 raman_spec[:, i] += np.real((raman_cross[l, self.obj_load.rp[i]])) * \
                     (1/np.pi)*(0.5*self.obj_load.res)/((self.obj_load.rshift-self.obj_load.wg[l])**2+(0.5*self.obj_load.res)**2)
             nm = 1e7/self.obj_load.rpumps[i]
             pen = self.cm[i/len(self.obj_load.rpumps)]
-            self.canvas2.plot(self.obj_load.rshift, np.real((raman_spec)[:, i]), pen = pen, name=f'{nm:.3f} nm laser')  # plot raman spectrum
-        self.canvas2.setTitle('Raman Spectra')
-        #self.canvas2.set_xlim(self.raman_xmin, self.raman_xmax)
-        self.canvas2.setLabel('bottom','Raman Shift (cm-1)')
-        self.canvas2.setLabel('left','Raman Cross Section \n(1e-14 Angstrom**2/Molecule)')
-        
-        
+            ramanline = self.canvas2.plot(self.obj_load.rshift, np.real((raman_spec)[:, i]), pen = pen, name=f'{nm:.3f} nm laser')  # plot raman spectrum
+            ramanline.setDownsampling(ds = True, auto=True, method='subsample')
+        self.canvas2.show()
 
         # Plot Raman excitation profiles
-        self.canvas.addLegend(colCount=2)
         for i in range(len(self.obj_load.rpumps)):  # iterate over pump wn
             for j in range(len(self.obj_load.wg)):  # iterate over all raman freqs
                 # print(j,i)
@@ -915,29 +938,20 @@ class SpectrumApp(QMainWindow):
                 pen = self.cm[j/len(self.obj_load.wg)]
                 line = self.canvas.plot(self.obj_load.convEL, np.real(np.transpose(raman_cross))[
                              :, j], pen=pen, name=f'{self.obj_load.wg[j]:.2f} cm-1')
+                line.setDownsampling(ds = True, auto=True, method='subsample')
         self.canvas.show()
-        self.canvas.setTitle('Raman Excitation Profiles')
-        #self.ax.set_xlim(self.profs_xmin, self.profs_xmax)
-        self.canvas.setLabel('bottom','Wavenumber (cm-1)')
-        self.canvas.setLabel('left','Raman Cross Section \n(1e-14 Angstrom**2/Molecule)')
-        self.canvas.addLegend()#loc='best', ncol=2, prop={'size': 8}
-        
 
         # plot absorption
-        self.canvas3.addLegend()
-        self.canvas3.plot(self.obj_load.convEL, np.real(abs_cross), name='Abs', pen = 'red')
-        self.canvas3.plot(self.obj_load.convEL, np.real(fl_cross), name='FL', pen = 'green')
+        absline = self.canvas3.plot(self.obj_load.convEL, np.real(abs_cross), name='Abs', pen = 'red')
+        absline.setDownsampling(ds = True, auto=True, method='subsample')
+        flline = self.canvas3.plot(self.obj_load.convEL, np.real(fl_cross), name='FL', pen = 'green')
+        flline.setDownsampling(ds = True, auto=True, method='subsample')
         try:
-            self.canvas3.plot(self.obj_load.convEL, self.obj_load.abs_exp[:, 1], name='Abs expt.', pen ='blue')
+            absexpline = self.canvas3.plot(self.obj_load.convEL, self.obj_load.abs_exp[:, 1], name='Abs expt.', pen ='blue')
+            absexpline.setDownsampling(ds = True, auto=True, method='subsample')
         except:
             print("No experimental absorption spectrum")
-        
-        self.canvas3.setTitle('Absorption and Emission Spectra')
-        #self.ax3.set_xlim(self.abs_xmin, self.abs_xmax)
-        self.canvas3.setLabel('bottom','Wavenumber (cm-1)')
-        self.canvas3.setLabel('left','Cross Section \n(1e-14 Angstrom**2/Molecule)')
-        #self.ax3.set_ylabel('Cross Section \n(1e-14 Angstrom**2/Molecule)')
-        
+               
         self.canvas3.show()
         
     
@@ -1021,6 +1035,7 @@ class SpectrumApp(QMainWindow):
 
     def update_spectrum(self):
         # Clear the previous series data
+        self.load_table()
         self.plot_data()
 
     '''
@@ -1046,14 +1061,14 @@ class SpectrumApp(QMainWindow):
         self.load_files()
         self.obj2table()
         print("Initialized. Files loaded from the working folder.")        
-        self.update_spectrum()
+        self.plot_data()
         self.dirlabel.setText("Current data folder: /"+self.dir)
    
     def obj2table(self):
         self.table_widget.itemChanged.disconnect(self.update_spectrum)        
         for row in range(len(self.obj_load.delta)):
-            item = QTableWidgetItem(f"{self.obj_load.delta[row]:.2f}")
-            label = QTableWidgetItem(f"delta@{self.obj_load.wg[row]} cm-1")
+            item = QTableWidgetItem(f"{self.obj_load.delta[row]:.4f}")
+            label = QTableWidgetItem(f"delta@{self.obj_load.wg[row]:.2f} cm-1")
             self.table_widget.setItem(row, 0, label)
             self.table_widget.setItem(row, 1, item)
             self.table_widget.setItem(row, 2, QTableWidgetItem("1"))
