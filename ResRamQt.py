@@ -1,5 +1,5 @@
 from PyQt5.QtCore import Qt, QThreadPool, pyqtSlot, QRunnable, pyqtSignal, QTimer, QObject
-from PyQt5.QtWidgets import QMessageBox, QLabel, QFileDialog, QCheckBox, QTextBrowser, QHeaderView, QApplication, QMainWindow, QVBoxLayout, QWidget, QTableWidget, QTableWidgetItem, QPushButton, QHBoxLayout, QSpacerItem, QSizePolicy
+from PyQt5.QtWidgets import QMessageBox, QLabel, QFileDialog, QCheckBox, QHeaderView, QApplication, QMainWindow, QVBoxLayout, QWidget, QTableWidget, QTableWidgetItem, QPushButton, QHBoxLayout, QSpacerItem, QSizePolicy
 from PyQt5.QtGui import *
 import pyqtgraph as pg
 import sys
@@ -176,7 +176,7 @@ class load_input():
 
         self.preA = ((5.744e-3)/self.n)*self.ts
         self.preF = self.preA*self.n**2
-        
+   
     def boltz_states(self):
         wg = self.wg.astype(int)
         cutoff = range(int(self.cutoff))
@@ -214,14 +214,13 @@ class load_input():
 
         return states, boltz_dist/norm, dos_energy
 
+
 def g(t,obj):
-    # Calculate parameters D and L based on obj attributes
-    obj.D = obj.gamma*(1+0.85*obj.k+0.88*obj.k**2)/(2.355+1.76*obj.k)  # D parameter
-    obj.L = obj.k*obj.D  # LAMBDA parameter
      # Calculate the function g using the calculated parameters
     g = ((obj.D/obj.L)**2)*(obj.L*t-1+np.exp(-obj.L*t))+1j*((obj.beta*obj.D**2)/(2*obj.L))*(1-np.exp(-obj.L*t))
     # g = p.gamma*np.abs(t)#
     return g
+
 
 def A(t,obj):
     # K=np.zeros((len(p.wg),len(t)),dtype=complex)
@@ -237,6 +236,7 @@ def A(t,obj):
     # Calculate the function A based on the K matrix
     A = obj.M**2*np.exp(-np.sum(K, axis=0))
     return A
+
 
 def R(t1, t2,obj):
     # Initialize Ra and R arrays for calculations
@@ -267,10 +267,14 @@ def R(t1, t2,obj):
                 R[idxq, idxl, :] = np.sum(Ra[:, idxq, idxl, :], axis=0)
     return np.prod(R, axis=1)
 
+
 def cross_sections(obj):
     sqrt2 = np.sqrt(2)
     obj.S = (obj.delta**2)/2  # calculate in cross_sections()
     obj.EL = np.linspace(obj.E0-obj.EL_reach, obj.E0+obj.EL_reach, 1000)  # range for spectra cm^-1
+    # Calculate parameters D and L based on obj attributes
+    obj.D = obj.gamma*(1+0.85*obj.k+0.88*obj.k**2)/(2.355+1.76*obj.k)  # D parameter
+    obj.L = obj.k*obj.D  # LAMBDA parameter
     q_r = np.ones((len(obj.wg), len(obj.wg), len(obj.th)), dtype=complex)
     K_r = np.zeros((len(obj.wg), len(obj.EL), len(obj.th)), dtype=complex)
     # elif p.order > 1:
@@ -472,6 +476,7 @@ def run_save(obj):
             f"{obj.inp[14]} # convergence for sums # no effect since order > 1 broken\n")
         file.write(f"{obj.inp[15]} # Boltz Toggle\n")
     return resram_data(current_time_str + "_data")
+
 
 def raman_residual(param,fit_obj):
     if fit_obj is None:
@@ -697,11 +702,11 @@ class SpectrumApp(QMainWindow):
         # left layout vertical
         self.left_layout = QVBoxLayout()
         # Calculate the figure size in inches based on pixels and screen DPI
-        dpi = self.physicalDpiX()  # Get the screen's DPI
-        fig_width_pixels = 1280  # Desired figure width in pixels
-        fig_height_pixels = 720  # Desired figure height in pixels
-        fig_width = fig_width_pixels / dpi
-        fig_height = fig_height_pixels / dpi
+        #dpi = self.physicalDpiX()  # Get the screen's DPI
+        #fig_width_pixels = 1280  # Desired figure width in pixels
+        #fig_height_pixels = 720  # Desired figure height in pixels
+        #fig_width = fig_width_pixels / dpi
+        #fig_height = fig_height_pixels / dpi
         '''
         self.canvas = FigureCanvas(plt.figure(
             figsize=(fig_width, fig_height)))  # fig profs
@@ -717,6 +722,7 @@ class SpectrumApp(QMainWindow):
         self.canvas.setBackground('white')
         self.canvas2.setBackground('white')
         self.canvas3.setBackground('white')
+        self.cm = pg.colormap.get('CET-R4')
         
         
         self.left_layout.addWidget(self.canvas, 5)
@@ -741,6 +747,7 @@ class SpectrumApp(QMainWindow):
         print("Initialized")
         self.showMaximized()
 
+    
     def sendto_table(self):
         self.table_widget.itemChanged.disconnect(self.update_spectrum)
 
@@ -781,6 +788,7 @@ class SpectrumApp(QMainWindow):
         self.table_widget.itemChanged.connect(self.update_spectrum)
         self.update_spectrum()
 
+    
     def load_table(self):        
         
         for i in range(len(self.obj_load.delta)):
@@ -868,30 +876,18 @@ class SpectrumApp(QMainWindow):
             self.update_timer.timeout.disconnect(self.sendto_table)
             self.stop_update_timer()
 
+    
     def plot_data(self):
         self.clear_canvas()
         self.load_table()
-        self.cm = pg.colormap.get('CET-R4')
+        
         #self.cmap = self.cm.getLookupTable(nPts=len(self.obj_load.wg))
         abs_cross, fl_cross, raman_cross, boltz_states, boltz_coef = cross_sections(self.obj_load)
         raman_spec = np.zeros((len(self.obj_load.rshift), len(self.obj_load.rpumps)))
         self.canvas2.addLegend(offset=(-30,30))
         for i in range(len(self.obj_load.rpumps)):
-            # rp = min(range(len(convEL)),key=lambda j:abs(convEL[j]-rpumps[i]))
-            min_diff = float('inf')
-            min_index = None
-
-            for j in range(len(self.obj_load.convEL)):
-                diff = np.absolute(self.obj_load.convEL[j] - self.obj_load.rpumps[i])
-                if diff < min_diff:
-                    min_diff = diff
-                    min_index = j
-
-            rp = min_index
-            # print(rp)
-            # print(rpumps)
             for l in np.arange(len(self.obj_load.wg)):
-                raman_spec[:, i] += np.real((raman_cross[l, rp])) * \
+                raman_spec[:, i] += np.real((raman_cross[l, self.obj_load.rp[i]])) * \
                     (1/np.pi)*(0.5*self.obj_load.res)/((self.obj_load.rshift-self.obj_load.wg[l])**2+(0.5*self.obj_load.res)**2)
             nm = 1e7/self.obj_load.rpumps[i]
             pen = self.cm[i/len(self.obj_load.rpumps)]
@@ -906,24 +902,13 @@ class SpectrumApp(QMainWindow):
         # Plot Raman excitation profiles
         self.canvas.addLegend(colCount=2)
         for i in range(len(self.obj_load.rpumps)):  # iterate over pump wn
-            min_diff = float('inf')
-            rp = None
-
-            # iterate over all exitation wn to find the one closest to pump
-            for j in range(len(self.obj_load.convEL)):
-                diff = np.absolute(self.obj_load.convEL[j] - self.obj_load.rpumps[i])
-                if diff < min_diff:
-                    min_diff = diff
-                    rp = j
-                # print(rp)
-
             for j in range(len(self.obj_load.wg)):  # iterate over all raman freqs
                 # print(j,i)
                 # sigma[j] = sigma[j] + (1e8*(np.real(raman_cross[j,rp])-rcross_exp[j,i]))**2
                 if self.plot_switch[j] == 1:
                     #color = self.obj_load.cmap(j)
                     pen = self.cm[j/len(self.obj_load.wg)]
-                    scatter = self.canvas.scatterPlot([self.obj_load.convEL[rp]], [self.obj_load.profs_exp[j, i]], symbol="o", pen=pen)
+                    scatter = self.canvas.scatterPlot([self.obj_load.convEL[self.obj_load.rp[i]]], [self.obj_load.profs_exp[j, i]], symbol="o", pen=pen)
                     scatter.setSymbolBrush(pen)
         for j in range(len(self.obj_load.wg)):  # iterate over all raman freqs
             if self.plot_switch[j] == 1:
@@ -955,7 +940,7 @@ class SpectrumApp(QMainWindow):
         
         self.canvas3.show()
         
-
+    
     def create_variable_table(self):
         self.table_widget = QTableWidget()
         self.table_widget.setColumnCount(4)
@@ -1063,7 +1048,7 @@ class SpectrumApp(QMainWindow):
         print("Initialized. Files loaded from the working folder.")        
         self.update_spectrum()
         self.dirlabel.setText("Current data folder: /"+self.dir)
-        
+   
     def obj2table(self):
         self.table_widget.itemChanged.disconnect(self.update_spectrum)        
         for row in range(len(self.obj_load.delta)):
