@@ -1,6 +1,7 @@
 tests/resources/PE2017
 build/
 dist/
+ResRamQt.build
 old/
 pyinstaller.bat
 # Do not ship old c_matrix*.c files, due to
