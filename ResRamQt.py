@@ -1,6 +1,6 @@
-from PyQt5.QtCore import Qt, QThreadPool, pyqtSlot, QRunnable, pyqtSignal, QTimer, QObject
-from PyQt5.QtWidgets import QMessageBox, QLabel, QFileDialog, QCheckBox, QHeaderView, QApplication, QMainWindow, QVBoxLayout, QWidget, QTableWidget, QTableWidgetItem, QPushButton, QHBoxLayout, QSpacerItem, QSizePolicy
-from PyQt5.QtGui import *
+from PySide6.QtCore import Qt, QThreadPool, Slot, QRunnable, Signal, QTimer, QObject
+from PySide6.QtWidgets import QMessageBox, QLabel, QFileDialog, QCheckBox, QHeaderView, QApplication, QMainWindow, QVBoxLayout, QWidget, QTableWidget, QTableWidgetItem, QPushButton, QHBoxLayout, QSpacerItem, QSizePolicy
+from PySide6.QtGui import *
 import pyqtgraph as pg
 import sys
 from datetime import datetime
@@ -642,8 +642,8 @@ class resram_data:
         '''
 
 class WorkerSignals(QObject):
-    result_ready = pyqtSignal(str)
-    finished = pyqtSignal(object)
+    result_ready = Signal(str)
+    finished = Signal(object)
 
 class Worker(QRunnable):
     def __init__(self,obj_load, tolerance,maxnfev,fit_alg,fit_switch):
@@ -655,7 +655,7 @@ class Worker(QRunnable):
         self.fit_alg = fit_alg
         self.fit_switch = fit_switch
 
-    @pyqtSlot()
+    @Slot()
     def run(self):
         # global delta, M, gamma, maxnfev, tolerance, fit_alg
         params_lmfit = param_init(self.fit_switch,self.obj_load)
@@ -886,7 +886,7 @@ class SpectrumApp(QMainWindow):
         self.worker.signals.finished.connect(self.handle_worker_result)
         self.worker.signals.result_ready.connect(self.update_fit)
 
-    @pyqtSlot(object)
+    @Slot(object)
     def handle_worker_result(self, result_object):
         # Handle the result object received from the worker
         self.obj_load = result_object
@@ -1171,7 +1171,7 @@ def main():
     app.setWindowIcon(QIcon('ico.ico'))
     window = SpectrumApp()
     window.show()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 
 if __name__ == '__main__':
