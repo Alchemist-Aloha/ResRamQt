@@ -12,7 +12,7 @@ The ResRamQt is a PyQt6-based graphical user interface (GUI) application that en
 
 **Installation**
   
-1. Install Python 3.9 - 3.12.
+1. Install Python 3.10 - 3.12.
 3. Clone the repository:
 ```Python
 git clone https://github.com/Alchemist-Aloha/ResRamQt.git
