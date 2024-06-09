@@ -1,6 +1,6 @@
-from PySide6.QtCore import Qt, QThreadPool, Slot, QRunnable, Signal, QTimer, QObject
-from PySide6.QtWidgets import QMessageBox, QLabel, QFileDialog, QCheckBox, QHeaderView, QApplication, QMainWindow, QVBoxLayout, QWidget, QTableWidget, QTableWidgetItem, QPushButton, QHBoxLayout, QSpacerItem, QSizePolicy
-from PySide6.QtGui import *
+from PyQt6.QtCore import Qt, QThreadPool, pyqtSlot, QRunnable, pyqtSignal, QTimer, QObject
+from PyQt6.QtWidgets import QMessageBox, QLabel, QFileDialog, QCheckBox, QHeaderView, QApplication, QMainWindow, QVBoxLayout, QWidget, QTableWidget, QTableWidgetItem, QPushButton, QHBoxLayout, QSpacerItem, QSizePolicy
+from PyQt6.QtGui import *
 import pyqtgraph as pg
 import sys
 from datetime import datetime
@@ -642,8 +642,8 @@ class resram_data:
         '''
 
 class WorkerSignals(QObject):
-    result_ready = Signal(str)
-    finished = Signal(object)
+    result_ready = pyqtSignal(str)
+    finished = pyqtSignal(object)
 
 class Worker(QRunnable):
     def __init__(self,obj_load, tolerance,maxnfev,fit_alg,fit_switch):
@@ -655,7 +655,7 @@ class Worker(QRunnable):
         self.fit_alg = fit_alg
         self.fit_switch = fit_switch
 
-    @Slot()
+    @pyqtSlot()
     def run(self):
         # global delta, M, gamma, maxnfev, tolerance, fit_alg
         params_lmfit = param_init(self.fit_switch,self.obj_load)
@@ -886,7 +886,7 @@ class SpectrumApp(QMainWindow):
         self.worker.signals.finished.connect(self.handle_worker_result)
         self.worker.signals.result_ready.connect(self.update_fit)
 
-    @Slot(object)
+    @pyqtSlot(object)
     def handle_worker_result(self, result_object):
         # Handle the result object received from the worker
         self.obj_load = result_object
@@ -973,9 +973,9 @@ class SpectrumApp(QMainWindow):
             len(self.obj_load.delta)+10, 1).text())  # fitting tolerance
         # Set headers to resize to contents
         self.table_widget.horizontalHeader().setSectionResizeMode(
-            0, QHeaderView.ResizeToContents)
+            0, QHeaderView.ResizeMode.ResizeToContents)
         self.table_widget.horizontalHeader().setSectionResizeMode(
-            1, QHeaderView.ResizeToContents)
+            1, QHeaderView.ResizeMode.ResizeToContents)
 
         self.right_layout.addWidget(self.table_widget)
 
@@ -1019,7 +1019,7 @@ class SpectrumApp(QMainWindow):
 
         # Add a stretch to push widgets to the right
         spacer = QSpacerItem(
-            40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+            40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         self.dirlabel = QLabel("Current data folder:/ "+self.dir)
         button_layout.addWidget(self.dirlabel)
         button_layout.addItem(spacer)
@@ -1139,7 +1139,7 @@ class SpectrumApp(QMainWindow):
         '''
 
     def keyPressEvent(self, event):
-        if event.key() == Qt.Key_F5:
+        if event.key() == Qt.Key.Key_F5:
             self.update_spectrum()
             
 
