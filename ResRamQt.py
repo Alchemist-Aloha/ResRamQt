@@ -698,12 +698,31 @@ class resram_data:
 
 
 class WorkerSignals(QObject):
+    """Signals to be used in the Worker class
+
+    Args:
+        QObject (_type_): _description_
+    """
     result_ready = pyqtSignal(str)
     finished = pyqtSignal(object)
 
 
 class Worker(QRunnable):
+    """Worker class to run the fitting in a separate thread
+
+    Args:
+        QRunnable (_type_): _description_
+    """
     def __init__(self, obj_load, tolerance, maxnfev, fit_alg, fit_switch):
+        """Initialize the Worker class
+
+        Args:
+            obj_load (_type_): _description_
+            tolerance (_type_): _description_
+            maxnfev (int): max iterations for the fitting
+            fit_alg (str): lmfit fitting algorithm to use
+            fit_switch (_type_): _description_
+        """
         super().__init__()
         self.signals = WorkerSignals()
         self.obj_load = obj_load
