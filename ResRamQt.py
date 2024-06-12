@@ -9,8 +9,17 @@ from math import factorial
 import numpy as np
 import lmfit
 
+
 class load_input():
+    """ Class to load input files and calculate parameters for the simulation
+    """
+
     def __init__(self, dir=None):
+        """_summary_
+
+        Args:
+            dir (str, optional): Directory to load input files from. Defaults to ResRamQt.py folder
+        """
         if dir is None:
             # Set default directory as empty if none provided
             self.dir = ''
@@ -22,10 +31,10 @@ class load_input():
         self.we = np.asarray(np.loadtxt(self.dir+'freqs.dat'))
         # Dimensionless displacements
         self.delta = np.asarray(np.loadtxt(self.dir+'deltas.dat'))
-        
+
         # divide color map to number of freqs. Use pyqtgraph. Ignore this
-        #self.colors = plt.cm.hsv(np.linspace(0, 1, len(self.wg)))
-        #self.cmap = ListedColormap(self.colors)
+        # self.colors = plt.cm.hsv(np.linspace(0, 1, len(self.wg)))
+        # self.cmap = ListedColormap(self.colors)
         self.S = (self.delta**2)/2  # calculate in cross_sections()
         try:
             self.abs_exp = np.loadtxt(self.dir+'abs_exp.dat')
@@ -40,6 +49,8 @@ class load_input():
 
     # Function to read input file
     def inp_txt(self):
+        """ load inp.txt and initialize parameters based on the values in the file
+        """
         try:
             with open(self.dir+'inp.txt', 'r') as i:  # loading inp.txt
                 print(f'load from {self.dir}inp.txt')
@@ -48,13 +59,13 @@ class load_input():
         except:
             with open(self.dir+'inp_new.txt', 'r') as i:  # loading inp_new.txt
                 print(f'load from {self.dir}inp.txt')
-        
+
                 self.inp = i.readlines()
             i.close()
-                # Process each line in inp.txt
+            # Process each line in inp.txt
         j = 0
         for l in self.inp:
-            l = l.partition('#')[0] # Remove comments
+            l = l.partition('#')[0]  # Remove comments
             l = l.rstrip()  # Remove trailing whitespaces
             self.inp[j] = l
             j += 1
@@ -84,10 +95,10 @@ class load_input():
             (2.355+1.76*self.k)  # D parameter
         self.L = self.k*self.D  # LAMBDA parameter
 
-        '''can be moved to save()'''
+        # can be moved to save()
         self.s_reorg = self.beta * \
             (self.L/self.k)**2/2  # reorganization energy cm^-1
-        # internal reorganization energy
+        # internal reorganization energy #
         self.w_reorg = 0.5*np.sum((self.delta)**2*self.wg)
         self.reorg = self.w_reorg + self.s_reorg  # Total reorganization energy
 
@@ -101,7 +112,7 @@ class load_input():
         self.EL_reach = float(self.inp[6])
         # range for spectra cm^-1
         self.EL = np.linspace(self.E0-self.EL_reach,
-                            self.E0+self.EL_reach, 1000)
+                              self.E0+self.EL_reach, 1000)
         # static inhomogeneous convolution range
         self.E0_range = np.linspace(-self.EL_reach *
                                     0.5, self.EL_reach*0.5, 501)
@@ -116,7 +127,7 @@ class load_input():
         self.tm = np.append(-np.flip(self.tp[1:], axis=0), self.tp)
         # Excitation axis after convolution with inhomogeneous distribution
         self.convEL = np.linspace(self.E0-self.EL_reach*0.5, self.E0+self.EL_reach*0.5,
-                                (max(len(self.E0_range), len(self.EL))-min(len(self.E0_range), len(self.EL))+1))
+                                  (max(len(self.E0_range), len(self.EL))-min(len(self.E0_range), len(self.EL))+1))
 
         self.M = float(self.inp[7])  # Transition dipole length angstroms
         self.n = float(self.inp[8])  # Refractive index
@@ -150,7 +161,7 @@ class load_input():
                 self.state = 0
             else:
                 self.state = min(range(len(self.boltz_coef)),
-                                key=lambda j: abs(self.boltz_coef[j]-self.convergence))
+                                 key=lambda j: abs(self.boltz_coef[j]-self.convergence))
 
             if self.state == 0:
                 self.order = 1
@@ -166,7 +177,7 @@ class load_input():
 
         # wq = None
         # wq = np.append(wg,wg)
-        
+
         ## Prefactors for absorption and Raman cross-sections ##
         if self.order == 1:
             # (0.3/pi) puts it in differential cross section
@@ -176,7 +187,7 @@ class load_input():
 
         self.preA = ((5.744e-3)/self.n)*self.ts
         self.preF = self.preA*self.n**2
-   
+
     def boltz_states(self):
         wg = self.wg.astype(int)
         cutoff = range(int(self.cutoff))
@@ -215,14 +226,24 @@ class load_input():
         return states, boltz_dist/norm, dos_energy
 
 
-def g(t,obj):
-     # Calculate the function g using the calculated parameters
-    g = ((obj.D/obj.L)**2)*(obj.L*t-1+np.exp(-obj.L*t))+1j*((obj.beta*obj.D**2)/(2*obj.L))*(1-np.exp(-obj.L*t))
+def g(t, obj):
+    """Calculate the function g using the calculated parameters
+
+    Args:
+        t (1darray): Time array
+        obj (load_input): load_input object containing all the parameters for the simulation
+
+    Returns:
+        _type_: _description_
+    """    
+    # Calculate the function g using the calculated parameters
+    g = ((obj.D/obj.L)**2)*(obj.L*t-1+np.exp(-obj.L*t))+1j * \
+        ((obj.beta*obj.D**2)/(2*obj.L))*(1-np.exp(-obj.L*t))
     # g = p.gamma*np.abs(t)#
     return g
 
 
-def A(t,obj):
+def A(t, obj):
     # K=np.zeros((len(p.wg),len(t)),dtype=complex)
     # Initialize K matrix based on the type of t provided
     if type(t) == np.ndarray:
@@ -238,9 +259,10 @@ def A(t,obj):
     return A
 
 
-def R(t1, t2,obj):
+def R(t1, t2, obj):
     # Initialize Ra and R arrays for calculations
-    Ra = np.zeros((len(obj.a), len(obj.wg), len(obj.wg), len(obj.EL)), dtype=complex)
+    Ra = np.zeros((len(obj.a), len(obj.wg), len(
+        obj.wg), len(obj.EL)), dtype=complex)
     R = np.zeros((len(obj.wg), len(obj.wg), len(obj.EL)), dtype=complex)
     # for l in np.arange(len(p.wg)):
     # 	for q in p.Q:
@@ -271,12 +293,14 @@ def R(t1, t2,obj):
 def cross_sections(obj):
     sqrt2 = np.sqrt(2)
     obj.S = (obj.delta**2)/2  # calculate in cross_sections()
-    obj.EL = np.linspace(obj.E0-obj.EL_reach, obj.E0+obj.EL_reach, 1000)  # range for spectra cm^-1
+    obj.EL = np.linspace(obj.E0-obj.EL_reach, obj.E0 +
+                         obj.EL_reach, 1000)  # range for spectra cm^-1
     # Calculate parameters D and L based on obj attributes
-    obj.D = obj.gamma*(1+0.85*obj.k+0.88*obj.k**2)/(2.355+1.76*obj.k)  # D parameter
+    obj.D = obj.gamma*(1+0.85*obj.k+0.88*obj.k**2) / \
+        (2.355+1.76*obj.k)  # D parameter
     obj.L = obj.k*obj.D  # LAMBDA parameter
     obj.convEL = np.linspace(obj.E0-obj.EL_reach*0.5, obj.E0+obj.EL_reach*0.5,
-                                (max(len(obj.E0_range), len(obj.EL))-min(len(obj.E0_range), len(obj.EL))+1))
+                             (max(len(obj.E0_range), len(obj.EL))-min(len(obj.E0_range), len(obj.EL))+1))
     q_r = np.ones((len(obj.wg), len(obj.wg), len(obj.th)), dtype=complex)
     K_r = np.zeros((len(obj.wg), len(obj.EL), len(obj.th)), dtype=complex)
     # elif p.order > 1:
@@ -288,12 +312,14 @@ def cross_sections(obj):
     if obj.theta == 0.0:
         H = 1.  # np.ones(len(p.E0_range))
     else:
-        H = (1/(obj.theta*np.sqrt(2*np.pi)))*np.exp(-((obj.E0_range)**2)/(2*obj.theta**2))
+        H = (1/(obj.theta*np.sqrt(2*np.pi))) * \
+            np.exp(-((obj.E0_range)**2)/(2*obj.theta**2))
 
     thth, ELEL = np.meshgrid(obj.th, obj.EL, sparse=True)
 
-    K_a = np.exp(1j*(ELEL-(obj.E0))*thth-g(thth,obj))*A(thth,obj)
-    K_f = np.exp(1j*(ELEL-(obj.E0))*thth-np.conj(g(thth,obj)))*np.conj(A(thth,obj))
+    K_a = np.exp(1j*(ELEL-(obj.E0))*thth-g(thth, obj))*A(thth, obj)
+    K_f = np.exp(1j*(ELEL-(obj.E0))*thth-np.conj(g(thth, obj))) * \
+        np.conj(A(thth, obj))
 
     ## If the order desired is 1 use the simple first order approximation ##
     if obj.order == 1:
@@ -364,8 +390,17 @@ def cross_sections(obj):
 
     return abs_cross, fl_cross, raman_cross, obj.boltz_state, obj.boltz_coef
 
+
 def run_save(obj):
-    #global current_time_str
+    """Run the simulation and save the results to a new folder
+
+    Args:
+        obj (load_input): load_input object containing all the parameters for the simulation
+
+    Returns:
+        resram_data: resram_data object containing the results of the simulation
+    """
+    # global current_time_str
     abs_cross, fl_cross, raman_cross, boltz_states, boltz_coef = cross_sections(
         obj)
     raman_spec = np.zeros((len(obj.rshift), len(obj.rpumps)))
@@ -377,7 +412,8 @@ def run_save(obj):
     for i in range(len(obj.rpumps)):
         for l in np.arange(len(obj.wg)):
             raman_spec[:, i] += np.real((raman_cross[l, obj.rp[i]])) * \
-                (1/np.pi)*(0.5*obj.res)/((obj.rshift-obj.wg[l])**2+(0.5*obj.res)**2)
+                (1/np.pi)*(0.5*obj.res) / \
+                ((obj.rshift-obj.wg[l])**2+(0.5*obj.res)**2)
     '''
     raman_full = np.zeros((len(convEL),len(rshift)))
     for i in range(len(convEL)):
@@ -398,7 +434,8 @@ def run_save(obj):
     os.mkdir('./'+current_time_str + '_data')
 
     obj.s_reorg = obj.beta*(obj.L/obj.k)**2/2  # reorganization energy cm^-1
-    obj.w_reorg = 0.5*np.sum((obj.delta)**2*obj.wg)  # internal reorganization energy
+    # internal reorganization energy
+    obj.w_reorg = 0.5*np.sum((obj.delta)**2*obj.wg)
     obj.reorg = obj.w_reorg + obj.s_reorg  # Total reorganization energy
     np.set_printoptions(threshold=sys.maxsize)
     np.savetxt(current_time_str + "_data/profs.dat",
@@ -480,27 +517,38 @@ def run_save(obj):
     return resram_data(current_time_str + "_data")
 
 
-def raman_residual(param,fit_obj):
+def raman_residual(param, fit_obj):
+    """Calculate the residual of the Raman cross section. loss = total_sigma - 300*(correlation - 1)
+
+    Args:
+        param (lmfit.Parameters): lmfit.Parameters object containing the parameters for the lmfit minimization
+        fit_obj (load_input): load_input object containing all the parameters for the simulation
+
+    Returns:
+        loss, total_sigma, 300*(1-correlation): _description_
+    """
     if fit_obj is None:
         fit_obj = load_input()
     for i in range(len(fit_obj.delta)):
         fit_obj.delta[i] = param.valuesdict()['delta'+str(i)]
     fit_obj.gamma = param.valuesdict()['gamma']
     fit_obj.M = param.valuesdict()['transition_length']
-    fit_obj.k = param.valuesdict()['kappa'] # kappa parameter
-    fit_obj.theta = param.valuesdict()['theta'] # kappa parameter
-    fit_obj.E0 = param.valuesdict()['E0'] # kappa parameter
-    #print(delta,gamma,M,k,theta,E0)
-    abs_cross,fl_cross,raman_cross,boltz_state,boltz_coef  = cross_sections(fit_obj)
-    correlation = (np.corrcoef(np.real(abs_cross), fit_obj.abs_exp[:,1])[0, 1])
-    #print("Correlation of absorption is "+ str(correlation))
-    #Minimize the negative correlation to get better fit
+    fit_obj.k = param.valuesdict()['kappa']  # kappa parameter
+    fit_obj.theta = param.valuesdict()['theta']  # kappa parameter
+    fit_obj.E0 = param.valuesdict()['E0']  # kappa parameter
+    # print(delta,gamma,M,k,theta,E0)
+    abs_cross, fl_cross, raman_cross, boltz_state, boltz_coef = cross_sections(
+        fit_obj)
+    correlation = (np.corrcoef(np.real(abs_cross),
+                   fit_obj.abs_exp[:, 1])[0, 1])
+    # print("Correlation of absorption is "+ str(correlation))
+    # Minimize the negative correlation to get better fit
 
-    if fit_obj.profs_exp.ndim == 1:    #Convert 1D array to 2D
-        fit_obj.profs_exp = np.reshape(fit_obj.profs_exp,(-1,1))
-        #print("Raman cross section expt is converted to a 2D array")
+    if fit_obj.profs_exp.ndim == 1:  # Convert 1D array to 2D
+        fit_obj.profs_exp = np.reshape(fit_obj.profs_exp, (-1, 1))
+        # print("Raman cross section expt is converted to a 2D array")
     sigma = np.zeros_like(fit_obj.delta)
-    #calculate sum of rmsd for each pump wavelength
+    # calculate sum of rmsd for each pump wavelength
     '''for i in range(len(fit_obj.rpumps)):
     
         for j in range(len(fit_obj.wg)):
@@ -508,54 +556,61 @@ def raman_residual(param,fit_obj):
             sigma[j] += (1e7*(np.real(raman_cross[j,fit_obj.rp[i]])-fit_obj.profs_exp[j,i]))**2
             '''
     # Calculate the intermediate expression in vectorized form
-    intermediate = 1e7 * (np.real(raman_cross[:, fit_obj.rp]) - fit_obj.profs_exp)**2
+    intermediate = 1e7 * \
+        (np.real(raman_cross[:, fit_obj.rp]) - fit_obj.profs_exp)**2
 
     # Perform the summation across axis 1 (equivalent to the nested loop)
     sigma += intermediate.sum(axis=1)
 
     total_sigma = np.sum(sigma)
-    #print("Total Raman sigma is "+ str(total_sigma))
-    loss= total_sigma - 300*(correlation - 1)
-    #print(loss)
+    # print("Total Raman sigma is "+ str(total_sigma))
+    loss = total_sigma - 300*(correlation - 1)
+    # print(loss)
     return loss, total_sigma, 300*(1-correlation)
 
-def param_init(fit_switch, obj = None):
+
+def param_init(fit_switch, obj=None):
     if obj is None:
         obj = load_input()
     params_lmfit = lmfit.Parameters()
     for i in range(len(obj.delta)):
         if fit_switch[i] == 1:
-            params_lmfit.add('delta'+str(i),value=obj.delta[i],min=0.0,max=1.0)
+            params_lmfit.add(
+                'delta'+str(i), value=obj.delta[i], min=0.0, max=1.0)
         else:
-            params_lmfit.add('delta'+str(i),value=obj.delta[i],vary = False)
-    
-    if fit_switch[len(obj.delta)]==1:
-        params_lmfit.add('gamma',value = obj.gamma,min = 0.6*obj.gamma, max = 1.4*obj.gamma)
-    else:
-        params_lmfit.add('gamma',value = obj.gamma,vary = False)
+            params_lmfit.add('delta'+str(i), value=obj.delta[i], vary=False)
 
-    if fit_switch[len(obj.delta)+1]==1:
-        params_lmfit.add('transition_length',value = obj.M,min = 0.8*obj.M, max = 1.2*obj.M)
+    if fit_switch[len(obj.delta)] == 1:
+        params_lmfit.add('gamma', value=obj.gamma, min=0.6 *
+                         obj.gamma, max=1.4*obj.gamma)
     else:
-        params_lmfit.add('transition_length',value = obj.M,vary =False)
+        params_lmfit.add('gamma', value=obj.gamma, vary=False)
 
-    if fit_switch[len(obj.delta)+2]==1:
-        params_lmfit.add('theta',value = obj.theta,min = 0.5*obj.theta, max = 1.5*obj.theta)
+    if fit_switch[len(obj.delta)+1] == 1:
+        params_lmfit.add('transition_length', value=obj.M,
+                         min=0.8*obj.M, max=1.2*obj.M)
     else:
-        params_lmfit.add('theta',value = obj.theta,vary = False)
+        params_lmfit.add('transition_length', value=obj.M, vary=False)
 
-    if fit_switch[len(obj.delta)+3]==1:
-        params_lmfit.add('kappa',value = obj.k,min = 0.9*obj.k, max = 1.1*obj.k)
+    if fit_switch[len(obj.delta)+2] == 1:
+        params_lmfit.add('theta', value=obj.theta, min=0.5 *
+                         obj.theta, max=1.5*obj.theta)
     else:
-        params_lmfit.add('kappa',value = obj.k,vary = False)
+        params_lmfit.add('theta', value=obj.theta, vary=False)
 
-    if fit_switch[len(obj.delta)+5]==1:
-        params_lmfit.add('E0',value = obj.E0,min = 0.95*obj.E0, max = 1.05*obj.E0)
+    if fit_switch[len(obj.delta)+3] == 1:
+        params_lmfit.add('kappa', value=obj.k, min=0.9*obj.k, max=1.1*obj.k)
     else:
-        params_lmfit.add('E0',value = obj.E0,vary = False)
+        params_lmfit.add('kappa', value=obj.k, vary=False)
 
-    #print("Initial parameters: "+ str(params_lmfit))
+    if fit_switch[len(obj.delta)+5] == 1:
+        params_lmfit.add('E0', value=obj.E0, min=0.95*obj.E0, max=1.05*obj.E0)
+    else:
+        params_lmfit.add('E0', value=obj.E0, vary=False)
+
+    # print("Initial parameters: "+ str(params_lmfit))
     return params_lmfit
+
 
 class resram_data:
     def __init__(self, input):
@@ -590,9 +645,9 @@ class resram_data:
             self.profs_exp = np.loadtxt(input+'/profs_exp.dat')
         except:
             print('No experimental Raman cross section found in directory ' + input)
-        #self.fig_profs, self.ax_profs = plt.subplots()
-        #self.fig_abs, self.ax_abs = plt.subplots()
-        #self.fig_raman, self.ax_raman = plt.subplots()
+        # self.fig_profs, self.ax_profs = plt.subplots()
+        # self.fig_abs, self.ax_abs = plt.subplots()
+        # self.fig_raman, self.ax_raman = plt.subplots()
     '''
     def plot(self):
         # divide color map to number of freqs
@@ -641,12 +696,14 @@ class resram_data:
         self.fig_abs.show()
         '''
 
+
 class WorkerSignals(QObject):
     result_ready = pyqtSignal(str)
     finished = pyqtSignal(object)
 
+
 class Worker(QRunnable):
-    def __init__(self,obj_load, tolerance,maxnfev,fit_alg,fit_switch):
+    def __init__(self, obj_load, tolerance, maxnfev, fit_alg, fit_switch):
         super().__init__()
         self.signals = WorkerSignals()
         self.obj_load = obj_load
@@ -658,8 +715,8 @@ class Worker(QRunnable):
     @pyqtSlot()
     def run(self):
         # global delta, M, gamma, maxnfev, tolerance, fit_alg
-        params_lmfit = param_init(self.fit_switch,self.obj_load)
-        
+        params_lmfit = param_init(self.fit_switch, self.obj_load)
+
         print("Fit is running, please wait...\n")
         fit_kws = dict(tol=self.tolerance)
         try:
@@ -669,19 +726,22 @@ class Worker(QRunnable):
             print(
                 "Something went wrong before fitting start. Use powell algorithm instead")
             result = lmfit.minimize(
-                raman_residual, params_lmfit, args=(self.obj_load,),method="powell", **fit_kws, max_nfev=self.maxnfev)
+                raman_residual, params_lmfit, args=(self.obj_load,), method="powell", **fit_kws, max_nfev=self.maxnfev)
         print(lmfit.fit_report(result))
         for i in range(len(self.obj_load.delta)):
             self.obj_load.delta[i] = result.params.valuesdict()['delta'+str(i)]
         self.obj_load.gamma = result.params.valuesdict()['gamma']
         self.obj_load.M = result.params.valuesdict()['transition_length']
-        self.obj_load.k = result.params.valuesdict()['kappa'] # kappa parameter
-        self.obj_load.theta = result.params.valuesdict()['theta'] # kappa parameter
-        self.obj_load.E0 = result.params.valuesdict()['E0'] # kappa parameter
+        self.obj_load.k = result.params.valuesdict()[
+            'kappa']  # kappa parameter
+        self.obj_load.theta = result.params.valuesdict()[
+            'theta']  # kappa parameter
+        self.obj_load.E0 = result.params.valuesdict()['E0']  # kappa parameter
         run_save(self.obj_load)
         print("Fit done\n")
         self.signals.result_ready.emit("Fit done")
         self.signals.finished.emit(self.obj_load)
+
 
 class SpectrumApp(QMainWindow):
     def __init__(self):
@@ -689,13 +749,13 @@ class SpectrumApp(QMainWindow):
         self.dir = ''
         # multithread
         self.threadpool = QThreadPool()
-        #print("Multithreading with maximum %d threads" %self.threadpool.maxThreadCount())
+        # print("Multithreading with maximum %d threads" %self.threadpool.maxThreadCount())
         self.load_files()
         self.plot_switch = np.ones(len(self.obj_load.delta)+18)
         self.fit_switch = np.ones(len(self.obj_load.delta)+18)
         self.init_ui()
-        
-    def init_ui(self):        
+
+    def init_ui(self):
         self.setWindowTitle("Raman Spectrum Analyzer")
         self.setGeometry(100, 100, 960, 540)
         # main layout horizontal
@@ -705,11 +765,11 @@ class SpectrumApp(QMainWindow):
         # left layout vertical
         self.left_layout = QVBoxLayout()
         # Calculate the figure size in inches based on pixels and screen DPI
-        #dpi = self.physicalDpiX()  # Get the screen's DPI
-        #fig_width_pixels = 1280  # Desired figure width in pixels
-        #fig_height_pixels = 720  # Desired figure height in pixels
-        #fig_width = fig_width_pixels / dpi
-        #fig_height = fig_height_pixels / dpi
+        # dpi = self.physicalDpiX()  # Get the screen's DPI
+        # fig_width_pixels = 1280  # Desired figure width in pixels
+        # fig_height_pixels = 720  # Desired figure height in pixels
+        # fig_width = fig_width_pixels / dpi
+        # fig_height = fig_height_pixels / dpi
         '''
         self.canvas = FigureCanvas(plt.figure(
             figsize=(fig_width, fig_height)))  # fig profs
@@ -719,31 +779,33 @@ class SpectrumApp(QMainWindow):
             figsize=(fig_width/2, fig_height)))  # fig abs
             '''
         # Initialize PlotWidgets
-        self.canvas = pg.PlotWidget()# fig profs
+        self.canvas = pg.PlotWidget()  # fig profs
         self.canvas.addLegend(colCount=2)
         self.canvas.setTitle('Raman Excitation Profiles')
-        #self.ax.set_xlim(self.profs_xmin, self.profs_xmax)
-        self.canvas.setLabel('bottom','Wavenumber (cm-1)')
-        self.canvas.setLabel('left','Raman Cross Section \n(1e-14 Angstrom**2/Molecule)')
-        self.canvas2 = pg.PlotWidget()# fig raman spec
-        self.canvas2.addLegend(offset=(-30,30))
+        # self.ax.set_xlim(self.profs_xmin, self.profs_xmax)
+        self.canvas.setLabel('bottom', 'Wavenumber (cm-1)')
+        self.canvas.setLabel(
+            'left', 'Raman Cross Section \n(1e-14 Angstrom**2/Molecule)')
+        self.canvas2 = pg.PlotWidget()  # fig raman spec
+        self.canvas2.addLegend(offset=(-30, 30))
         self.canvas2.setTitle('Raman Spectra')
-        #self.canvas2.set_xlim(self.raman_xmin, self.raman_xmax)
-        self.canvas2.setLabel('bottom','Raman Shift (cm-1)')
-        self.canvas2.setLabel('left','Raman Cross Section \n(1e-14 Angstrom**2/Molecule)')
-        self.canvas3 = pg.PlotWidget()# fig abs
+        # self.canvas2.set_xlim(self.raman_xmin, self.raman_xmax)
+        self.canvas2.setLabel('bottom', 'Raman Shift (cm-1)')
+        self.canvas2.setLabel(
+            'left', 'Raman Cross Section \n(1e-14 Angstrom**2/Molecule)')
+        self.canvas3 = pg.PlotWidget()  # fig abs
         self.canvas3.addLegend()
         self.canvas3.setTitle('Absorption and Emission Spectra')
-        #self.ax3.set_xlim(self.abs_xmin, self.abs_xmax)
-        self.canvas3.setLabel('bottom','Wavenumber (cm-1)')
-        self.canvas3.setLabel('left','Cross Section \n(1e-14 Angstrom**2/Molecule)')
-        #self.ax3.set_ylabel('Cross Section \n(1e-14 Angstrom**2/Molecule)')
+        # self.ax3.set_xlim(self.abs_xmin, self.abs_xmax)
+        self.canvas3.setLabel('bottom', 'Wavenumber (cm-1)')
+        self.canvas3.setLabel(
+            'left', 'Cross Section \n(1e-14 Angstrom**2/Molecule)')
+        # self.ax3.set_ylabel('Cross Section \n(1e-14 Angstrom**2/Molecule)')
         self.canvas.setBackground('white')
         self.canvas2.setBackground('white')
         self.canvas3.setBackground('white')
         self.cm = pg.colormap.get('CET-R4')
-        
-        
+
         self.left_layout.addWidget(self.canvas, 5)
         self.layout.addLayout(self.left_layout, 3)
         self.left_bottom_layout = QHBoxLayout()
@@ -753,20 +815,18 @@ class SpectrumApp(QMainWindow):
 
         # self.left_layout.addWidget(self.output_logger, 1)  # Use a stretch factor of 1.5
         self.right_layout = QVBoxLayout()
-        
+
         # self.right_layout.addWidget(self.table_widget) #included in create_variable_table
 
-        
         self.layout.addLayout(self.right_layout, 1)
         self.create_buttons()
         self.create_variable_table()
         # timer for updating plot
-        self.update_timer = QTimer(self)        
+        self.update_timer = QTimer(self)
         self.plot_data()
         print("Initialized")
         self.showMaximized()
 
-    
     def sendto_table(self):
         self.table_widget.itemChanged.disconnect(self.update_spectrum)
 
@@ -775,31 +835,42 @@ class SpectrumApp(QMainWindow):
             self.table_widget.setItem(
                 row, 1, QTableWidgetItem(f"{self.obj_load.delta[row]}"))
             self.table_widget.setItem(row, 0, label)
-        self.table_widget.setItem(len(self.obj_load.delta), 0, QTableWidgetItem("gamma"))
-        self.table_widget.setItem(len(self.obj_load.delta), 1, QTableWidgetItem(str(self.obj_load.gamma)))
+        self.table_widget.setItem(
+            len(self.obj_load.delta), 0, QTableWidgetItem("gamma"))
+        self.table_widget.setItem(
+            len(self.obj_load.delta), 1, QTableWidgetItem(str(self.obj_load.gamma)))
         self.table_widget.setItem(
             len(self.obj_load.delta)+1, 0, QTableWidgetItem("Transition Length"))
-        self.table_widget.setItem(len(self.obj_load.delta)+1, 1, QTableWidgetItem(str(self.obj_load.M)))
-        self.table_widget.setItem(len(self.obj_load.delta)+2, 0, QTableWidgetItem("theta"))
+        self.table_widget.setItem(
+            len(self.obj_load.delta)+1, 1, QTableWidgetItem(str(self.obj_load.M)))
+        self.table_widget.setItem(
+            len(self.obj_load.delta)+2, 0, QTableWidgetItem("theta"))
         self.table_widget.setItem(
             len(self.obj_load.delta)+2, 1, QTableWidgetItem(str(self.obj_load.theta)))
-        self.table_widget.setItem(len(self.obj_load.delta)+3, 0, QTableWidgetItem("kappa"))
-        self.table_widget.setItem(len(self.obj_load.delta)+3, 1, QTableWidgetItem(str(self.obj_load.k)))
+        self.table_widget.setItem(
+            len(self.obj_load.delta)+3, 0, QTableWidgetItem("kappa"))
+        self.table_widget.setItem(
+            len(self.obj_load.delta)+3, 1, QTableWidgetItem(str(self.obj_load.k)))
         self.table_widget.setItem(
             len(self.obj_load.delta)+4, 0, QTableWidgetItem("Refractive Index"))
-        self.table_widget.setItem(len(self.obj_load.delta)+4, 1, QTableWidgetItem(str(self.obj_load.n)))
-        self.table_widget.setItem(len(self.obj_load.delta)+5, 0, QTableWidgetItem("E00"))
-        self.table_widget.setItem(len(self.obj_load.delta)+5, 1, QTableWidgetItem(str(self.obj_load.E0)))
+        self.table_widget.setItem(
+            len(self.obj_load.delta)+4, 1, QTableWidgetItem(str(self.obj_load.n)))
+        self.table_widget.setItem(
+            len(self.obj_load.delta)+5, 0, QTableWidgetItem("E00"))
+        self.table_widget.setItem(
+            len(self.obj_load.delta)+5, 1, QTableWidgetItem(str(self.obj_load.E0)))
         self.table_widget.setItem(
             len(self.obj_load.delta)+6, 0, QTableWidgetItem("Time step (ps)"))
-        self.table_widget.setItem(len(self.obj_load.delta)+6, 1, QTableWidgetItem(str(self.obj_load.ts)))
+        self.table_widget.setItem(
+            len(self.obj_load.delta)+6, 1, QTableWidgetItem(str(self.obj_load.ts)))
         self.table_widget.setItem(
             len(self.obj_load.delta)+7, 0, QTableWidgetItem("Time step number"))
         self.table_widget.setItem(
             len(self.obj_load.delta)+7, 1, QTableWidgetItem(str(self.obj_load.ntime)))
         self.table_widget.setItem(
             len(self.obj_load.delta)+11, 0, QTableWidgetItem("Temp (K)"))
-        self.table_widget.setItem(len(self.obj_load.delta)+11, 1, QTableWidgetItem(str(self.obj_load.T)))
+        self.table_widget.setItem(
+            len(self.obj_load.delta)+11, 1, QTableWidgetItem(str(self.obj_load.T)))
         self.table_widget.setItem(
             len(self.obj_load.delta)+12, 0, QTableWidgetItem("Raman maxcalc"))
         self.table_widget.setItem(
@@ -807,17 +878,20 @@ class SpectrumApp(QMainWindow):
         self.table_widget.itemChanged.connect(self.update_spectrum)
         self.plot_data()
 
-    
-    def load_table(self):        
+    def load_table(self):
         for i in range(len(self.obj_load.delta)):
             self.obj_load.delta[i] = float(self.table_widget.item(i, 1).text())
-            self.plot_switch[i] = int(float(self.table_widget.item(i, 2).text()))
-            self.fit_switch[i] = int(float(self.table_widget.item(i, 3).text()))
+            self.plot_switch[i] = int(
+                float(self.table_widget.item(i, 2).text()))
+            self.fit_switch[i] = int(
+                float(self.table_widget.item(i, 3).text()))
 
-        self.obj_load.gamma = float(self.table_widget.item(len(self.obj_load.delta), 1).text())
+        self.obj_load.gamma = float(self.table_widget.item(
+            len(self.obj_load.delta), 1).text())
         self.fit_switch[len(self.obj_load.delta)] = int(
             float(self.table_widget.item(len(self.obj_load.delta), 3).text()))
-        self.obj_load.M = float(self.table_widget.item(len(self.obj_load.delta)+1, 1).text())
+        self.obj_load.M = float(self.table_widget.item(
+            len(self.obj_load.delta)+1, 1).text())
         self.fit_switch[len(
             self.obj_load.delta)+1] = int(float(self.table_widget.item(len(self.obj_load.delta)+1, 3).text()))
         self.obj_load.theta = float(self.table_widget.item(
@@ -834,29 +908,37 @@ class SpectrumApp(QMainWindow):
             len(self.obj_load.delta)+5, 1).text())  # E00 parameter
         self.fit_switch[len(
             self.obj_load.delta)+5] = int(float(self.table_widget.item(len(self.obj_load.delta)+5, 3).text()))
-        self.obj_load.ts = float(self.table_widget.item(len(self.obj_load.delta)+6, 1).text())
-        self.obj_load.ntime = float(self.table_widget.item(len(self.obj_load.delta)+7, 1).text())
-        
+        self.obj_load.ts = float(self.table_widget.item(
+            len(self.obj_load.delta)+6, 1).text())
+        self.obj_load.ntime = float(self.table_widget.item(
+            len(self.obj_load.delta)+7, 1).text())
+
         ## Update Time range ##
-        self.obj_load.UB_time = self.obj_load.ntime*self.obj_load.ts  # Upper bound in time range
+        self.obj_load.UB_time = self.obj_load.ntime * \
+            self.obj_load.ts  # Upper bound in time range
         self.obj_load.t = np.linspace(0, self.obj_load.UB_time, int(
             self.obj_load.ntime))  # time range in ps
-        self.obj_load.th = np.array(self.obj_load.t/self.obj_load.hbar)  # t/hbar
+        self.obj_load.th = np.array(
+            self.obj_load.t/self.obj_load.hbar)  # t/hbar
         self.obj_load.ntime_rot = self.obj_load.ntime/np.sqrt(2)
         self.obj_load.ts_rot = self.obj_load.ts/np.sqrt(2)
         self.obj_load.UB_time_rot = self.obj_load.ntime_rot*self.obj_load.ts_rot
-        self.obj_load.tp = np.linspace(0, self.obj_load.UB_time_rot, int(self.obj_load.ntime_rot))
+        self.obj_load.tp = np.linspace(
+            0, self.obj_load.UB_time_rot, int(self.obj_load.ntime_rot))
         self.obj_load.tm = None
-        self.obj_load.tm = np.append(-np.flip(self.obj_load.tp[1:], axis=0), self.obj_load.tp)   
-             
+        self.obj_load.tm = np.append(
+            -np.flip(self.obj_load.tp[1:], axis=0), self.obj_load.tp)
+
         self.fit_alg = self.table_widget.item(
             len(self.obj_load.delta)+8, 1).text()  # fitting algorithm
         self.maxnfev = int(self.table_widget.item(
             len(self.obj_load.delta)+9, 1).text())  # max fitting steps
         self.tolerance = float(self.table_widget.item(
             len(self.obj_load.delta)+10, 1).text())  # fitting tolerance
-        self.obj_load.T = float(self.table_widget.item(len(self.obj_load.delta)+11, 1).text())
-        self.obj_load.raman_maxcalc = float(self.table_widget.item(len(self.obj_load.delta)+12, 1).text())
+        self.obj_load.T = float(self.table_widget.item(
+            len(self.obj_load.delta)+11, 1).text())
+        self.obj_load.raman_maxcalc = float(
+            self.table_widget.item(len(self.obj_load.delta)+12, 1).text())
 
     def clear_canvas(self):
         if self.canvas is not None:
@@ -877,7 +959,8 @@ class SpectrumApp(QMainWindow):
     def fit(self):
         self.load_table()
         print("Initial deltas: "+str(self.obj_load.delta))
-        self.worker = Worker(self.obj_load, self.tolerance,self.maxnfev,self.fit_alg,self.fit_switch)  # thread for fitting
+        self.worker = Worker(self.obj_load, self.tolerance, self.maxnfev,
+                             self.fit_alg, self.fit_switch)  # thread for fitting
         self.fit_button.setEnabled(False)
         self.fit_button.setText("Fit Running")
         self.threadpool.start(self.worker)
@@ -892,7 +975,7 @@ class SpectrumApp(QMainWindow):
         self.obj_load = result_object
         print("Received fitting result")
         # You can use the result_object in the main window as needed
-        
+
     def update_fit(self, result):
         self.fit_button.setText("Fit")
         self.fit_button.setEnabled(True)  # Re-enable the button
@@ -906,21 +989,24 @@ class SpectrumApp(QMainWindow):
             self.update_timer.timeout.disconnect(self.sendto_table)
             self.stop_update_timer()
 
-    
     def plot_data(self):
         self.clear_canvas()
-        #self.load_table()
-        abs_cross, fl_cross, raman_cross, boltz_states, boltz_coef = cross_sections(self.obj_load)
-        raman_spec = np.zeros((len(self.obj_load.rshift), len(self.obj_load.rpumps)))
-        
+        # self.load_table()
+        abs_cross, fl_cross, raman_cross, boltz_states, boltz_coef = cross_sections(
+            self.obj_load)
+        raman_spec = np.zeros(
+            (len(self.obj_load.rshift), len(self.obj_load.rpumps)))
+
         for i in range(len(self.obj_load.rpumps)):
             for l in np.arange(len(self.obj_load.wg)):
                 raman_spec[:, i] += np.real((raman_cross[l, self.obj_load.rp[i]])) * \
-                    (1/np.pi)*(0.5*self.obj_load.res)/((self.obj_load.rshift-self.obj_load.wg[l])**2+(0.5*self.obj_load.res)**2)
+                    (1/np.pi)*(0.5*self.obj_load.res)/((self.obj_load.rshift -
+                                                        self.obj_load.wg[l])**2+(0.5*self.obj_load.res)**2)
             nm = 1e7/self.obj_load.rpumps[i]
             pen = self.cm[i/len(self.obj_load.rpumps)]
-            ramanline = self.canvas2.plot(self.obj_load.rshift, np.real((raman_spec)[:, i]), pen = pen, name=f'{nm:.3f} nm laser')  # plot raman spectrum
-            ramanline.setDownsampling(ds = True, auto=True, method='subsample')
+            ramanline = self.canvas2.plot(self.obj_load.rshift, np.real(
+                (raman_spec)[:, i]), pen=pen, name=f'{nm:.3f} nm laser')  # plot raman spectrum
+            ramanline.setDownsampling(ds=True, auto=True, method='subsample')
         self.canvas2.show()
 
         # Plot Raman excitation profiles
@@ -929,32 +1015,35 @@ class SpectrumApp(QMainWindow):
                 # print(j,i)
                 # sigma[j] = sigma[j] + (1e8*(np.real(raman_cross[j,rp])-rcross_exp[j,i]))**2
                 if self.plot_switch[j] == 1:
-                    #color = self.obj_load.cmap(j)
+                    # color = self.obj_load.cmap(j)
                     pen = self.cm[j/len(self.obj_load.wg)]
-                    scatter = self.canvas.scatterPlot([self.obj_load.convEL[self.obj_load.rp[i]]], [self.obj_load.profs_exp[j, i]], symbol="o", pen=pen)
+                    scatter = self.canvas.scatterPlot([self.obj_load.convEL[self.obj_load.rp[i]]], [
+                                                      self.obj_load.profs_exp[j, i]], symbol="o", pen=pen)
                     scatter.setSymbolBrush(pen)
         for j in range(len(self.obj_load.wg)):  # iterate over all raman freqs
             if self.plot_switch[j] == 1:
                 pen = self.cm[j/len(self.obj_load.wg)]
                 line = self.canvas.plot(self.obj_load.convEL, np.real(np.transpose(raman_cross))[
-                             :, j], pen=pen, name=f'{self.obj_load.wg[j]:.2f} cm-1')
-                line.setDownsampling(ds = True, auto=True, method='subsample')
+                    :, j], pen=pen, name=f'{self.obj_load.wg[j]:.2f} cm-1')
+                line.setDownsampling(ds=True, auto=True, method='subsample')
         self.canvas.show()
 
         # plot absorption
-        absline = self.canvas3.plot(self.obj_load.convEL, np.real(abs_cross), name='Abs', pen = 'red')
-        absline.setDownsampling(ds = True, auto=True, method='subsample')
-        flline = self.canvas3.plot(self.obj_load.convEL, np.real(fl_cross), name='FL', pen = 'green')
-        flline.setDownsampling(ds = True, auto=True, method='subsample')
+        absline = self.canvas3.plot(
+            self.obj_load.convEL, np.real(abs_cross), name='Abs', pen='red')
+        absline.setDownsampling(ds=True, auto=True, method='subsample')
+        flline = self.canvas3.plot(self.obj_load.convEL, np.real(
+            fl_cross), name='FL', pen='green')
+        flline.setDownsampling(ds=True, auto=True, method='subsample')
         try:
-            absexpline = self.canvas3.plot(self.obj_load.convEL, self.obj_load.abs_exp[:, 1], name='Abs expt.', pen ='blue')
-            absexpline.setDownsampling(ds = True, auto=True, method='subsample')
+            absexpline = self.canvas3.plot(
+                self.obj_load.convEL, self.obj_load.abs_exp[:, 1], name='Abs expt.', pen='blue')
+            absexpline.setDownsampling(ds=True, auto=True, method='subsample')
         except:
             print("No experimental absorption spectrum")
-               
+
         self.canvas3.show()
-        
-    
+
     def create_variable_table(self):
         self.table_widget = QTableWidget()
         self.table_widget.setColumnCount(4)
@@ -964,7 +1053,7 @@ class SpectrumApp(QMainWindow):
         self.table_widget.itemChanged.connect(self.update_spectrum)
         self.obj2table()
         print("Initialized. Files loaded from the working folder.")
-        #initialize parameters for ResRam Gui only
+        # initialize parameters for ResRam Gui only
         self.fit_alg = self.table_widget.item(
             len(self.obj_load.delta)+8, 1).text()  # fitting algorithm
         self.maxnfev = int(self.table_widget.item(
@@ -1051,21 +1140,21 @@ class SpectrumApp(QMainWindow):
 
     def save_data(self):
         run_save(self.obj_load)
-        
+
     def load_files(self):
         self.obj_load = load_input(self.dir)
         return self.obj_load
-        
+
     def initialize(self):
         self.dir = ''
         self.load_files()
         self.obj2table()
-        print("Initialized. Files loaded from the working folder.")        
+        print("Initialized. Files loaded from the working folder.")
         self.plot_data()
         self.dirlabel.setText("Current data folder: /"+self.dir)
-   
+
     def obj2table(self):
-        self.table_widget.itemChanged.disconnect(self.update_spectrum)        
+        self.table_widget.itemChanged.disconnect(self.update_spectrum)
         for row in range(len(self.obj_load.delta)):
             item = QTableWidgetItem(f"{self.obj_load.delta[row]:.4f}")
             label = QTableWidgetItem(f"delta@{self.obj_load.wg[row]:.2f} cm-1")
@@ -1073,31 +1162,42 @@ class SpectrumApp(QMainWindow):
             self.table_widget.setItem(row, 1, item)
             self.table_widget.setItem(row, 2, QTableWidgetItem("1"))
             self.table_widget.setItem(row, 3, QTableWidgetItem("1"))
-        self.table_widget.setItem(len(self.obj_load.delta), 0, QTableWidgetItem("gamma"))
-        self.table_widget.setItem(len(self.obj_load.delta), 1, QTableWidgetItem(str(self.obj_load.inp[0])))
-        self.table_widget.setItem(len(self.obj_load.delta), 3, QTableWidgetItem("1"))
+        self.table_widget.setItem(
+            len(self.obj_load.delta), 0, QTableWidgetItem("gamma"))
+        self.table_widget.setItem(
+            len(self.obj_load.delta), 1, QTableWidgetItem(str(self.obj_load.inp[0])))
+        self.table_widget.setItem(
+            len(self.obj_load.delta), 3, QTableWidgetItem("1"))
         self.table_widget.setItem(
             len(self.obj_load.delta)+1, 0, QTableWidgetItem("Transition Length (A)"))
         self.table_widget.setItem(
             len(self.obj_load.delta)+1, 1, QTableWidgetItem(str(self.obj_load.inp[7])))
-        self.table_widget.setItem(len(self.obj_load.delta)+1, 3, QTableWidgetItem("1"))
-        self.table_widget.setItem(len(self.obj_load.delta)+2, 0, QTableWidgetItem("theta"))
+        self.table_widget.setItem(
+            len(self.obj_load.delta)+1, 3, QTableWidgetItem("1"))
+        self.table_widget.setItem(
+            len(self.obj_load.delta)+2, 0, QTableWidgetItem("theta"))
         self.table_widget.setItem(
             len(self.obj_load.delta)+2, 1, QTableWidgetItem(str(self.obj_load.inp[1])))
-        self.table_widget.setItem(len(self.obj_load.delta)+2, 3, QTableWidgetItem("1"))
-        self.table_widget.setItem(len(self.obj_load.delta)+3, 0, QTableWidgetItem("kappa"))
+        self.table_widget.setItem(
+            len(self.obj_load.delta)+2, 3, QTableWidgetItem("1"))
+        self.table_widget.setItem(
+            len(self.obj_load.delta)+3, 0, QTableWidgetItem("kappa"))
         self.table_widget.setItem(
             len(self.obj_load.delta)+3, 1, QTableWidgetItem(str(self.obj_load.inp[3])))
-        self.table_widget.setItem(len(self.obj_load.delta)+3, 3, QTableWidgetItem("0"))
+        self.table_widget.setItem(
+            len(self.obj_load.delta)+3, 3, QTableWidgetItem("0"))
         self.table_widget.setItem(
             len(self.obj_load.delta)+4, 0, QTableWidgetItem("Refractive Index"))
         self.table_widget.setItem(
             len(self.obj_load.delta)+4, 1, QTableWidgetItem(str(self.obj_load.inp[8])))
-        self.table_widget.setItem(len(self.obj_load.delta)+4, 3, QTableWidgetItem("0"))
-        self.table_widget.setItem(len(self.obj_load.delta)+5, 0, QTableWidgetItem("E00"))
+        self.table_widget.setItem(
+            len(self.obj_load.delta)+4, 3, QTableWidgetItem("0"))
+        self.table_widget.setItem(
+            len(self.obj_load.delta)+5, 0, QTableWidgetItem("E00"))
         self.table_widget.setItem(
             len(self.obj_load.delta)+5, 1, QTableWidgetItem(str(self.obj_load.inp[2])))
-        self.table_widget.setItem(len(self.obj_load.delta)+5, 3, QTableWidgetItem("0"))
+        self.table_widget.setItem(
+            len(self.obj_load.delta)+5, 3, QTableWidgetItem("0"))
         self.table_widget.setItem(
             len(self.obj_load.delta)+6, 0, QTableWidgetItem("Time step (ps)"))
         self.table_widget.setItem(
@@ -1108,10 +1208,12 @@ class SpectrumApp(QMainWindow):
             len(self.obj_load.delta)+7, 1, QTableWidgetItem(str(self.obj_load.inp[5])))
         self.table_widget.setItem(
             len(self.obj_load.delta)+8, 0, QTableWidgetItem("Fitting lgorithm"))
-        self.table_widget.setItem(len(self.obj_load.delta)+8, 1, QTableWidgetItem("powell"))
+        self.table_widget.setItem(
+            len(self.obj_load.delta)+8, 1, QTableWidgetItem("powell"))
         self.table_widget.setItem(
             len(self.obj_load.delta)+9, 0, QTableWidgetItem("Fitting maxnfev"))
-        self.table_widget.setItem(len(self.obj_load.delta)+9, 1, QTableWidgetItem("100"))
+        self.table_widget.setItem(
+            len(self.obj_load.delta)+9, 1, QTableWidgetItem("100"))
         self.table_widget.setItem(
             len(self.obj_load.delta)+10, 0, QTableWidgetItem("Fitting tolerance"))
         self.table_widget.setItem(
@@ -1125,7 +1227,6 @@ class SpectrumApp(QMainWindow):
         self.table_widget.setItem(
             len(self.obj_load.delta)+12, 1, QTableWidgetItem(str(self.obj_load.inp[10])))
         self.table_widget.itemChanged.connect(self.update_spectrum)
-
 
     '''
     def update_data(self):#nouse
@@ -1141,7 +1242,7 @@ class SpectrumApp(QMainWindow):
     def keyPressEvent(self, event):
         if event.key() == Qt.Key.Key_F5:
             self.update_spectrum()
-            
+
 
 '''
 class OutputWidget(QTextBrowser):#Not compatible with qrunner. 
@@ -1154,7 +1255,8 @@ class OutputWidget(QTextBrowser):#Not compatible with qrunner.
         self.insertPlainText(text)
         self.ensureCursorVisible()  # Scroll to the latest text
         '''
-        
+
+
 def exception_hook(exctype, value, traceback):
     """
     Custom exception hook to handle uncaught exceptions.
@@ -1162,7 +1264,9 @@ def exception_hook(exctype, value, traceback):
     """
     msg = f"Unhandled exception: {exctype.__name__}\n{value}"
     QMessageBox.critical(None, "Unhandled Exception", msg)
-    sys.__excepthook__(exctype, value, traceback)  # Call default exception hook
+    # Call default exception hook
+    sys.__excepthook__(exctype, value, traceback)
+
 
 def main():
     app = QApplication(sys.argv)
