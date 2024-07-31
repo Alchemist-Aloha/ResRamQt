@@ -42,6 +42,11 @@ class load_input():
             print('No experimental absorption spectrum found in directory/')
 
         try:
+            self.fl_exp = np.loadtxt(self.dir+'fl_exp.dat')
+        except:
+            print('No experimental fluorescence spectrum found in directory/')
+            
+        try:
             self.profs_exp = np.loadtxt(self.dir+'profs_exp.dat')
         except:
             print('No experimental Raman cross section found in directory/')
@@ -467,6 +472,13 @@ def run_save(obj):
                    obj.abs_exp, delimiter="\t")
     except:
         print('No experimental absorption spectrum found in directory/')
+        
+    try:
+        obj.fl_exp = np.loadtxt('fl_exp.dat')
+        np.savetxt(current_time_str+'_data/fl_exp.dat',
+                   obj.fl_exp, delimiter="\t")
+    except:
+        print('No experimental fluorescence spectrum found in directory/')
 
     try:
         obj.profs_exp = np.loadtxt('profs_exp.dat')
@@ -1060,6 +1072,13 @@ class SpectrumApp(QMainWindow):
             absexpline.setDownsampling(ds=True, auto=True, method='subsample')
         except:
             print("No experimental absorption spectrum")
+        
+        try:
+            flexpline = self.canvas3.plot(
+                self.obj_load.convEL, self.obj_load.fl_exp[:, 1], name='FL expt.', pen='yellow')
+            flexpline.setDownsampling(ds=True, auto=True, method='subsample')
+        except:
+            print("No experimental fluorescence spectrum")
 
         self.canvas3.show()
 
