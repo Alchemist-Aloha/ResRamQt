@@ -1107,11 +1107,8 @@ class SpectrumApp(QMainWindow):
         self.right_layout.addWidget(self.table_widget)
 
     def select_subfolder(self):
-        options = QFileDialog.Options()
-        options |= QFileDialog.ShowDirsOnly | QFileDialog.ReadOnly
-
         self.folder_path = QFileDialog.getExistingDirectory(
-            self, "Select Subfolder", os.getcwd(), options=options)
+            self, "Select Subfolder", os.getcwd(), options = QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.ReadOnly)
 
         if self.folder_path:
             print("Selected folder:", self.folder_path)
