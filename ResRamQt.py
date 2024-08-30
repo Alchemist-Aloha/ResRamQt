@@ -906,6 +906,10 @@ class SpectrumApp(QMainWindow):
             len(self.obj_load.delta)+12, 0, QTableWidgetItem("Raman maxcalc"))
         self.table_widget.setItem(
             len(self.obj_load.delta)+12, 1, QTableWidgetItem(str(self.obj_load.raman_maxcalc)))
+        self.table_widget.setItem(
+            len(self.obj_load.delta)+13, 0, QTableWidgetItem("EL reach"))
+        self.table_widget.setItem(
+            len(self.obj_load.delta)+13, 1, QTableWidgetItem(str(self.obj_load.EL_reach)))
         self.table_widget.itemChanged.connect(self.update_spectrum)
         self.plot_data()
 
@@ -943,7 +947,15 @@ class SpectrumApp(QMainWindow):
             len(self.obj_load.delta)+6, 1).text())
         self.obj_load.ntime = float(self.table_widget.item(
             len(self.obj_load.delta)+7, 1).text())
-
+        self.obj_load.EL_reach = float(
+            self.table_widget.item(len(self.obj_load.delta)+13, 1).text())
+        self.obj_load.EL = np.linspace(self.obj_load.E0-self.obj_load.EL_reach,
+                              self.obj_load.E0+self.obj_load.EL_reach, 1000)
+        # static inhomogeneous convolution range
+        self.obj_load.E0_range = np.linspace(-self.obj_load.EL_reach *
+                                    0.5, self.obj_load.EL_reach*0.5, 501)
+        self.obj_load.convEL = np.linspace(self.obj_load.E0-self.obj_load.EL_reach*0.5, self.obj_load.E0+self.obj_load.EL_reach*0.5,
+                                  (max(len(self.obj_load.E0_range), len(self.obj_load.EL))-min(len(self.obj_load.E0_range), len(self.obj_load.EL))+1))
         ## Update Time range ##
         self.obj_load.UB_time = self.obj_load.ntime * \
             self.obj_load.ts  # Upper bound in time range
@@ -970,6 +982,7 @@ class SpectrumApp(QMainWindow):
             len(self.obj_load.delta)+11, 1).text())
         self.obj_load.raman_maxcalc = float(
             self.table_widget.item(len(self.obj_load.delta)+12, 1).text())
+
 
     def clear_canvas(self):
         if self.canvas is not None:
@@ -1261,6 +1274,10 @@ class SpectrumApp(QMainWindow):
             len(self.obj_load.delta)+12, 0, QTableWidgetItem("Raman maxcalc"))
         self.table_widget.setItem(
             len(self.obj_load.delta)+12, 1, QTableWidgetItem(str(self.obj_load.inp[10])))
+        self.table_widget.setItem(
+            len(self.obj_load.delta)+13, 0, QTableWidgetItem("EL reach"))
+        self.table_widget.setItem(
+            len(self.obj_load.delta)+13, 1, QTableWidgetItem(str(self.obj_load.inp[6])))
         self.table_widget.itemChanged.connect(self.update_spectrum)
 
     '''
