@@ -1607,7 +1607,7 @@ class SpectrumApp(QMainWindow):
             len(self.obj_load.delta) + 7, 1, QTableWidgetItem(str(self.obj_load.inp[5]))
         )
         self.table_widget.setItem(
-            len(self.obj_load.delta) + 8, 0, QTableWidgetItem("Fitting lgorithm")
+            len(self.obj_load.delta) + 8, 0, QTableWidgetItem("Fitting algorithm")
         )
         self.table_widget.setItem(
             len(self.obj_load.delta) + 8, 1, QTableWidgetItem("powell")
