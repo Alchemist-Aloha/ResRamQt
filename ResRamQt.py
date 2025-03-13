@@ -1,3 +1,12 @@
+# Compilation mode, support OS-specific options
+# nuitka-project-if: {OS} in ("Windows", "Linux", "Darwin", "FreeBSD"):
+#    nuitka-project: --onefile
+# nuitka-project-else:
+#    nuitka-project: --mode=standalonealone
+
+# The PySide6 plugin covers qt-plugins
+# nuitka-project: --enable-plugin=pyqt6
+# nuitka-project: --include-qt-plugins=qml
 from PyQt6.QtCore import (
     Qt,
     QThreadPool,
@@ -41,7 +50,6 @@ class load_input:
         dir (str, optional): Directory to load input files from. Defaults to ResRamQt.py folder
 
     """
-
     def __init__(self, dir=None):
         if dir is None:
             # Set default directory as empty if none provided
@@ -286,6 +294,13 @@ def g(t: np.ndarray, obj: load_input) -> np.ndarray:
 
 
 def A(t: np.ndarray, obj: load_input) -> np.ndarray:
+    """Calculate the function A using the calculated parameters
+    Args:
+        t (1darray): Time array
+        obj (load_input): load_input object containing all the parameters for the simulation
+    Returns:
+        A (1darray): A function calculated using the parameters
+    """
     # K=np.zeros((len(p.wg),len(t)),dtype=complex)
     # Initialize K matrix based on the type of t provided
     if isinstance(t, np.ndarray):
@@ -303,6 +318,14 @@ def A(t: np.ndarray, obj: load_input) -> np.ndarray:
 
 
 def R(t1: np.ndarray, t2: np.ndarray, obj: load_input) -> np.ndarray:
+    """Calculate the function R using the calculated parameters
+    Args:
+        t1 (1darray): Time array
+        t2 (1darray): Time array
+        obj (load_input): load_input object containing all the parameters for the simulation
+    Returns:
+        R (1darray): R function calculated using the parameters
+    """
     # Initialize Ra and R arrays for calculations
     Ra = np.zeros((len(obj.a), len(obj.wg), len(obj.wg), len(obj.EL)), dtype=complex)
     R = np.zeros((len(obj.wg), len(obj.wg), len(obj.EL)), dtype=complex)
@@ -377,9 +400,15 @@ def R(t1: np.ndarray, t2: np.ndarray, obj: load_input) -> np.ndarray:
                     )
                 R[idxq, idxl, :] = np.sum(Ra[:, idxq, idxl, :], axis=0)
     return np.prod(R, axis=1)
-
-
+        
 def cross_sections(obj: load_input) -> tuple:
+    """Calculate the cross sections for absorption, fluorescence, and Raman scattering.
+    Args:
+        obj (load_input): load_input object containing all the parameters for the simulation
+    Returns:
+        tuple: Absorption cross section, fluorescence cross section, Raman cross section
+    """
+    time1 = datetime.now()
     sqrt2 = np.sqrt(2)
     obj.S = (obj.delta**2) / 2  # calculate in cross_sections()
     obj.EL = np.linspace(
@@ -416,7 +445,7 @@ def cross_sections(obj: load_input) -> tuple:
     K_f = np.exp(1j * (ELEL - (obj.E0)) * thth - np.conj(g(thth, obj))) * np.conj(
         A(thth, obj)
     )
-
+    time0 = datetime.now()
     ## If the order desired is 1 use the simple first order approximation ##
     if obj.order == 1:
         for idxq, q in enumerate(obj.Q, start=0):
@@ -435,7 +464,7 @@ def cross_sections(obj: load_input) -> tuple:
                         * (1 - np.exp(1j * obj.wg[idxl] * thth)) ** (-q[idxl])
                     )
             K_r[idxq, :, :] = K_a * (np.prod(q_r, axis=1)[idxq])
-
+        print("Time taken for K_r calculation: ", datetime.now() - time0)
     # If the order is greater than 1, carry out the sums R and compute the full double integral
     ##### Higher order is still broken, need to fix #####
     elif obj.order > 1:
@@ -454,17 +483,18 @@ def cross_sections(obj: load_input) -> tuple:
 
         integ = np.trapezoid(integ_r1, axis=0)
     ######################################################
-
+    time0 = datetime.now()
     integ_a = np.trapezoid(K_a, axis=1)
     abs_cross = (
         obj.preA * obj.convEL * np.convolve(integ_a, np.real(H), "valid") / (np.sum(H))
     )
-
+    print("Time taken for Abs cross section calculation: ", datetime.now() - time0)
+    time0 = datetime.now()
     integ_f = np.trapezoid(K_f, axis=1)
     fl_cross = (
         obj.preF * obj.convEL * np.convolve(integ_f, np.real(H), "valid") / (np.sum(H))
     )
-
+    print("Time taken for Fl cross section calculation: ", datetime.now() - time0)
     # plt.plot(p.convEL,abs_cross)
     # plt.plot(p.convEL,fl_cross)
     # plt.show()
@@ -475,7 +505,7 @@ def cross_sections(obj: load_input) -> tuple:
     # print p.s_reorg
     # print p.w_reorg
     # print p.reorg
-
+    time0 = datetime.now()
     for l in range(len(obj.wg)):
         if obj.order == 1:
             integ_r[l, :] = np.trapezoid(K_r[l, :, :], axis=1)
@@ -496,6 +526,7 @@ def cross_sections(obj: load_input) -> tuple:
                 * np.convolve(integ_r[l, :], np.real(H), "valid")
                 / (np.sum(H))
             )
+    print("Time taken for Raman cross section calculation: ", datetime.now() - time0)
 
     # plt.plot(p.convEL,fl_cross)
     # plt.plot(p.convEL,abs_cross)
@@ -507,7 +538,7 @@ def cross_sections(obj: load_input) -> tuple:
     # plt.plot(p.convEL,raman_cross[3])
     # plt.show()
     # exit()
-
+    print("Time taken for all calculations: ", datetime.now() - time1)
     return abs_cross, fl_cross, raman_cross, obj.boltz_state, obj.boltz_coef
 
 
@@ -667,7 +698,7 @@ def run_save(obj: load_input) -> None:
 # return resram_data(current_time_str + "_data")
 
 
-def raman_residual(param: lmfit.Parameters, fit_obj: None | load_input = None) -> tuple:
+def raman_residual(param: lmfit.Parameters, fit_obj: None | load_input = None) -> tuple[float, float, float]:
     """Calculate the residual of the Raman cross section. loss = total_sigma - 300*(correlation - 1)
 
     Args:
@@ -717,6 +748,13 @@ def raman_residual(param: lmfit.Parameters, fit_obj: None | load_input = None) -
 
 
 def param_init(fit_switch: np.ndarray, obj: None | load_input = None):
+    """Initialize the parameters for the lmfit minimization
+    Args:
+        fit_switch (np.ndarray): Array of 0|1 for each parameter
+        obj (load_input): load_input object containing all the parameters for the simulation
+        Returns:
+        params_lmfit (lmfit.Parameters): lmfit.Parameters object containing the parameters for the lmfit minimization
+    """
     if obj is None:
         obj = load_input()
     params_lmfit = lmfit.Parameters()
@@ -875,15 +913,15 @@ class Worker(QRunnable):
         QRunnable (_type_): _description_
     """
 
-    def __init__(self, obj_load, tolerance, maxnfev, fit_alg, fit_switch):
+    def __init__(self, obj_load:load_input, tolerance:float, maxnfev:int, fit_alg:str, fit_switch:np.ndarray) -> None:
         """Initialize the Worker class
 
         Args:
-            obj_load (_type_): _description_
-            tolerance (_type_): _description_
-            maxnfev (int): max iterations for the fitting
-            fit_alg (str): lmfit fitting algorithm to use
-            fit_switch (_type_): _description_
+            obj_load (load_input): load_input object containing all the parameters for the simulation
+            tolerance (float): Tolerance for the fitting
+            maxnfev (int): Maximum number of function evaluations
+            fit_alg (str): Fitting algorithm to be used
+            fit_switch (np.ndarray): Array of 0|1 for each parameter
         """
         super().__init__()
         self.signals = WorkerSignals()
@@ -895,6 +933,8 @@ class Worker(QRunnable):
 
     @pyqtSlot()
     def run(self):
+        """Run the fitting in a separate thread
+        """
         # global delta, M, gamma, maxnfev, tolerance, fit_alg
         params_lmfit = param_init(self.fit_switch, self.obj_load)
 
@@ -937,6 +977,8 @@ class Worker(QRunnable):
 
 
 class SpectrumApp(QMainWindow):
+    """Main class for the GUI
+    """
     def __init__(self):
         super().__init__()
         self.dir = ""
@@ -1019,6 +1061,8 @@ class SpectrumApp(QMainWindow):
         self.showMaximized()
 
     def sendto_table(self):
+        """Send the data to the table
+        """
         self.table_widget.itemChanged.disconnect(self.update_spectrum)
 
         for row in range(len(self.obj_load.delta)):
@@ -1101,6 +1145,8 @@ class SpectrumApp(QMainWindow):
         self.plot_data()
 
     def load_table(self):
+        """Load the data from the table
+        """
         for i in range(len(self.obj_load.delta)):
             self.obj_load.delta[i] = float(self.table_widget.item(i, 1).text())
             self.plot_switch[i] = int(float(self.table_widget.item(i, 2).text()))
@@ -1201,6 +1247,8 @@ class SpectrumApp(QMainWindow):
         )
 
     def clear_canvas(self):
+        """Clear the canvas
+        """
         if self.canvas is not None:
             self.canvas.clear()  # Redraw the canvas to clear it
 
@@ -1211,12 +1259,18 @@ class SpectrumApp(QMainWindow):
             self.canvas3.clear()  # Redraw the canvas to clear it
 
     def start_update_timer(self):
-        self.update_timer.start(3000)  # 1 seconds (in milliseconds)
+        """Start the timer to update the plot
+        """
+        self.update_timer.start(3000)  # 3 seconds (in milliseconds)
 
     def stop_update_timer(self):
+        """Stop the timer to update the plot
+        """
         self.update_timer.stop()
 
     def fit(self):
+        """Fit the data
+        """
         self.load_table()
         print("Initial deltas: " + str(self.obj_load.delta))
         self.worker = Worker(
@@ -1231,8 +1285,11 @@ class SpectrumApp(QMainWindow):
         self.worker.signals.result_ready.connect(self.update_fit)
 
     @pyqtSlot(object)
-    def handle_worker_result(self, result_object):
-        # Handle the result object received from the worker
+    def handle_worker_result(self, result_object:load_input):
+        """Handle the result object received from the worker
+        Args:
+            result_object (load_input): The result object received from the worker
+        """
         self.obj_load = result_object
         print("Received fitting result")
         # You can use the result_object in the main window as needed
@@ -1242,7 +1299,11 @@ class SpectrumApp(QMainWindow):
         self.fit_button.setEnabled(True)  # Re-enable the button
         self.sendto_table()
 
-    def on_toggle(self, state):
+    def on_toggle(self, state:bool):
+        """Toggle the update timer on or off
+        Args:
+            state (bool): True to start the timer, False to stop it
+        """
         if state:
             self.start_update_timer()
             self.update_timer.timeout.connect(self.sendto_table)
@@ -1251,6 +1312,7 @@ class SpectrumApp(QMainWindow):
             self.stop_update_timer()
 
     def plot_data(self):
+        """Plot the data"""
         self.clear_canvas()
         # self.load_table()
         abs_cross, fl_cross, raman_cross, boltz_states, boltz_coef = cross_sections(
@@ -1341,6 +1403,8 @@ class SpectrumApp(QMainWindow):
         self.canvas3.show()
 
     def create_variable_table(self):
+        """Create the variable table
+        """
         self.table_widget = QTableWidget()
         self.table_widget.setColumnCount(4)
         self.table_widget.setRowCount(len(self.obj_load.delta) + 19)
@@ -1371,6 +1435,8 @@ class SpectrumApp(QMainWindow):
         self.right_layout.addWidget(self.table_widget)
 
     def select_subfolder(self):
+        """Select the subfolder
+        """
         self.folder_path = QFileDialog.getExistingDirectory(
             self,
             "Select Subfolder",
@@ -1387,6 +1453,8 @@ class SpectrumApp(QMainWindow):
             self.plot_data()
 
     def create_buttons(self):
+        """Create the buttons
+        """
         # self.add_button = QPushButton("Add Data")
         self.update_button = QPushButton("Update table")
         self.save_button = QPushButton("Save parameters")
@@ -1428,7 +1496,8 @@ class SpectrumApp(QMainWindow):
         self.left_layout.addLayout(button_layout)
 
     def update_spectrum(self):
-        # Clear the previous series data
+        """Clear the previous series data
+        """
         self.load_table()
         self.plot_data()
 
@@ -1447,10 +1516,14 @@ class SpectrumApp(QMainWindow):
         run_save(self.obj_load)
 
     def load_files(self):
+        """Load the files from the directory
+        """
         self.obj_load = load_input(self.dir)
         return self.obj_load
 
     def initialize(self):
+        """Initialize the GUI
+        """
         self.dir = ""
         self.load_files()
         self.obj2table()
@@ -1459,6 +1532,8 @@ class SpectrumApp(QMainWindow):
         self.dirlabel.setText("Current data folder: /" + self.dir)
 
     def obj2table(self):
+        """Convert the object to a table
+        """
         self.table_widget.itemChanged.disconnect(self.update_spectrum)
         for row in range(len(self.obj_load.delta)):
             item = QTableWidgetItem(f"{self.obj_load.delta[row]:.4f}")
@@ -1587,6 +1662,10 @@ class SpectrumApp(QMainWindow):
         """
 
     def keyPressEvent(self, event):
+        """Handle key press events
+        Args:
+            event (QKeyEvent): The key press event
+        """
         if event.key() == Qt.Key.Key_F5:
             self.update_spectrum()
 
