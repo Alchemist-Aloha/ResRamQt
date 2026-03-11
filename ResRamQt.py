@@ -285,12 +285,12 @@ def g(t: np.ndarray, obj: load_input) -> np.ndarray:
     Returns:
         g (1darray): g function calculated using the parameters
     """
-    # Calculate the function g using the calculated parameters
-    g = ((obj.D / obj.L) ** 2) * (obj.L * t - 1 + np.exp(-obj.L * t)) + 1j * (
-        (obj.beta * obj.D**2) / (2 * obj.L)
-    ) * (1 - np.exp(-obj.L * t))
-    # g = p.gamma*np.abs(t)#
-    return g
+    DL_ratio_sq = (obj.D / obj.L) ** 2
+    term2_coef = 1j * (obj.beta * obj.D**2) / (2 * obj.L)
+    exp_lt = np.exp(-obj.L * t)
+
+    g_val = DL_ratio_sq * (obj.L * t - 1 + exp_lt) + term2_coef * (1 - exp_lt)
+    return g_val
 
 
 def A(t: np.ndarray, obj: load_input) -> np.ndarray:
@@ -301,20 +301,16 @@ def A(t: np.ndarray, obj: load_input) -> np.ndarray:
     Returns:
         A (1darray): A function calculated using the parameters
     """
-    # K=np.zeros((len(p.wg),len(t)),dtype=complex)
-    # Initialize K matrix based on the type of t provided
-    if isinstance(t, np.ndarray):
-        K = np.zeros((len(obj.wg), len(obj.th)), dtype=complex)
-    else:
-        K = np.zeros((len(obj.wg), 1), dtype=complex)
-    # Calculate the K matrix
-    for l in np.arange(len(obj.wg)):
-        K[l, :] = (1 + obj.eta[l]) * obj.S[l] * (
-            1 - np.exp(-1j * obj.wg[l] * t)
-        ) + obj.eta[l] * obj.S[l] * (1 - np.exp(1j * obj.wg[l] * t))
-    # Calculate the function A based on the K matrix
-    A = obj.M**2 * np.exp(-np.sum(K, axis=0))
-    return A
+    a = (1 + obj.eta) * obj.S
+    b = obj.eta * obj.S
+    sum_ab = np.sum(a + b)
+
+    wg_t = np.multiply.outer(obj.wg, t)
+    exp_minus = np.exp(-1j * wg_t)
+    exp_plus = np.conj(exp_minus)
+
+    sum_K = sum_ab - np.tensordot(a, exp_minus, axes=1) - np.tensordot(b, exp_plus, axes=1)
+    return obj.M**2 * np.exp(-sum_K)
 
 
 def R(t1: np.ndarray, t2: np.ndarray, obj: load_input) -> np.ndarray:
@@ -448,22 +444,19 @@ def cross_sections(obj: load_input) -> tuple:
     time0 = datetime.now()
     ## If the order desired is 1 use the simple first order approximation ##
     if obj.order == 1:
-        for idxq, q in enumerate(obj.Q, start=0):
-            for idxl, l in enumerate(q, start=0):
-                if q[idxl] > 0:
-                    q_r[idxq, idxl, :] = (
-                        (1.0 / factorial(q[idxl])) ** (0.5)
-                        * (((1 + obj.eta[idxl]) ** (0.5) * obj.delta[idxl]) / sqrt2)
-                        ** (q[idxl])
-                        * (1 - np.exp(-1j * obj.wg[idxl] * thth)) ** (q[idxl])
-                    )
-                elif q[idxl] < 0:
-                    q_r[idxq, idxl, :] = (
-                        (1.0 / factorial(np.abs(q[idxl]))) ** (0.5)
-                        * (((obj.eta[l]) ** (0.5) * obj.delta[l]) / sqrt2) ** (-q[idxl])
-                        * (1 - np.exp(1j * obj.wg[idxl] * thth)) ** (-q[idxl])
-                    )
-            K_r[idxq, :, :] = K_a * (np.prod(q_r, axis=1)[idxq])
+        term2 = (((1 + obj.eta) ** 0.5 * obj.delta) / sqrt2)
+        phase = obj.wg[:, np.newaxis] * thth[0, :][np.newaxis, :]
+        term3 = 1 - np.exp(-1j * phase)
+
+        q_r_diag = term2[:, np.newaxis] * term3 # shape: (len(wg), len(th))
+
+        weights = np.ones(len(obj.th))
+        weights[0] = 0.5
+        weights[-1] = 0.5
+
+        q_r_diag_w = q_r_diag * weights
+
+        integ_r = (K_a @ q_r_diag_w.T).T
         print("Time taken for K_r calculation: ", datetime.now() - time0)
     # If the order is greater than 1, carry out the sums R and compute the full double integral
     ##### Higher order is still broken, need to fix #####
@@ -506,19 +499,19 @@ def cross_sections(obj: load_input) -> tuple:
     # print p.w_reorg
     # print p.reorg
     time0 = datetime.now()
-    for l in range(len(obj.wg)):
-        if obj.order == 1:
-            integ_r[l, :] = np.trapezoid(K_r[l, :, :], axis=1)
-            raman_cross[l, :] = (
-                obj.preR
-                * obj.convEL
-                * (obj.convEL - obj.wg[l]) ** 3
-                * np.convolve(
-                    integ_r[l, :] * np.conj(integ_r[l, :]), np.real(H), "valid"
-                )
-                / (np.sum(H))
-            )
-        elif obj.order > 1:
+
+    if obj.order == 1:
+        integ_r_sq = integ_r * np.conj(integ_r) # shape (len(wg), len(EL))
+        H_real = np.real(H)
+        conv_res = np.zeros((len(obj.wg), len(obj.convEL)), dtype=complex)
+        for l in range(len(obj.wg)):
+            conv_res[l, :] = np.convolve(integ_r_sq[l, :], H_real, "valid")
+
+        term3_rc = (obj.convEL[np.newaxis, :] - obj.wg[:, np.newaxis]) ** 3
+        raman_cross = (obj.preR * obj.convEL * term3_rc * conv_res) / np.sum(H_real)
+
+    elif obj.order > 1:
+        for l in range(len(obj.wg)):
             raman_cross[l, :] = (
                 obj.preR
                 * obj.convEL
@@ -1054,6 +1047,9 @@ class SpectrumApp(QMainWindow):
         self.main_layout.addLayout(self.right_layout, 1)
         self.create_buttons()
         self.create_variable_table()
+        # Plot references to avoid clearing canvas and re-creating items
+        self.plot_refs = {}
+
         # timer for updating plot
         self.update_timer = QTimer(self)
         self.plot_data()
@@ -1313,11 +1309,25 @@ class SpectrumApp(QMainWindow):
 
     def plot_data(self):
         """Plot the data"""
-        self.clear_canvas()
-        # self.load_table()
         abs_cross, fl_cross, raman_cross, boltz_states, boltz_coef = cross_sections(
             self.obj_load
         )
+
+        # Determine if we need to completely clear due to changes in data lengths
+        if self.plot_refs.get("wg_len") != len(self.obj_load.wg) or self.plot_refs.get("rpumps_len") != len(self.obj_load.rpumps):
+            self.clear_canvas()
+            self.plot_refs = {
+                "wg_len": len(self.obj_load.wg),
+                "rpumps_len": len(self.obj_load.rpumps),
+                "raman_spec_lines": [None] * len(self.obj_load.rpumps),
+                "profs_lines": [None] * len(self.obj_load.wg),
+                "profs_scatter": [[None] * len(self.obj_load.wg) for _ in range(len(self.obj_load.rpumps))],
+                "abs_line": None,
+                "fl_line": None,
+                "abs_exp_line": None,
+                "fl_exp_line": None,
+            }
+
         raman_spec = np.zeros((len(self.obj_load.rshift), len(self.obj_load.rpumps)))
 
         for i in range(len(self.obj_load.rpumps)):
@@ -1333,70 +1343,112 @@ class SpectrumApp(QMainWindow):
                 )
             nm = 1e7 / self.obj_load.rpumps[i]
             pen = self.cm[i / len(self.obj_load.rpumps)]
-            ramanline = self.canvas2.plot(
-                self.obj_load.rshift,
-                np.real((raman_spec)[:, i]),
-                pen=pen,
-                name=f"{nm:.3f} nm laser",
-            )  # plot raman spectrum
-            ramanline.setDownsampling(ds=True, auto=True, method="subsample")
+            if self.plot_refs["raman_spec_lines"][i] is None:
+                ramanline = self.canvas2.plot(
+                    self.obj_load.rshift,
+                    np.real((raman_spec)[:, i]),
+                    pen=pen,
+                    name=f"{nm:.3f} nm laser",
+                )  # plot raman spectrum
+                ramanline.setDownsampling(ds=True, auto=True, method="subsample")
+                self.plot_refs["raman_spec_lines"][i] = ramanline
+            else:
+                self.plot_refs["raman_spec_lines"][i].setData(
+                    self.obj_load.rshift,
+                    np.real((raman_spec)[:, i])
+                )
         self.canvas2.show()
 
         # Plot Raman excitation profiles
         for i in range(len(self.obj_load.rpumps)):  # iterate over pump wn
             for j in range(len(self.obj_load.wg)):  # iterate over all raman freqs
-                # print(j,i)
-                # sigma[j] = sigma[j] + (1e8*(np.real(raman_cross[j,rp])-rcross_exp[j,i]))**2
                 if self.plot_switch[j] == 1:
-                    # color = self.obj_load.cmap(j)
                     pen = self.cm[j / len(self.obj_load.wg)]
-                    scatter = self.canvas.scatterPlot(
-                        [self.obj_load.convEL[self.obj_load.rp[i]]],
-                        [self.obj_load.profs_exp[j, i]],
-                        symbol="o",
-                        pen=pen,
-                    )
-                    scatter.setSymbolBrush(pen)
+                    if self.plot_refs["profs_scatter"][i][j] is None:
+                        scatter = self.canvas.scatterPlot(
+                            [self.obj_load.convEL[self.obj_load.rp[i]]],
+                            [self.obj_load.profs_exp[j, i]],
+                            symbol="o",
+                            pen=pen,
+                        )
+                        scatter.setSymbolBrush(pen)
+                        self.plot_refs["profs_scatter"][i][j] = scatter
+                    else:
+                        self.plot_refs["profs_scatter"][i][j].setData(
+                            [self.obj_load.convEL[self.obj_load.rp[i]]],
+                            [self.obj_load.profs_exp[j, i]]
+                        )
+                        self.plot_refs["profs_scatter"][i][j].show()
+                else:
+                    if self.plot_refs["profs_scatter"][i][j] is not None:
+                        self.plot_refs["profs_scatter"][i][j].hide()
+
         for j in range(len(self.obj_load.wg)):  # iterate over all raman freqs
             if self.plot_switch[j] == 1:
                 pen = self.cm[j / len(self.obj_load.wg)]
-                line = self.canvas.plot(
-                    self.obj_load.convEL,
-                    np.real(np.transpose(raman_cross))[:, j],
-                    pen=pen,
-                    name=f"{self.obj_load.wg[j]:.2f} cm-1",
-                )
-                line.setDownsampling(ds=True, auto=True, method="subsample")
+                if self.plot_refs["profs_lines"][j] is None:
+                    line = self.canvas.plot(
+                        self.obj_load.convEL,
+                        np.real(np.transpose(raman_cross))[:, j],
+                        pen=pen,
+                        name=f"{self.obj_load.wg[j]:.2f} cm-1",
+                    )
+                    line.setDownsampling(ds=True, auto=True, method="subsample")
+                    self.plot_refs["profs_lines"][j] = line
+                else:
+                    self.plot_refs["profs_lines"][j].setData(
+                        self.obj_load.convEL,
+                        np.real(np.transpose(raman_cross))[:, j]
+                    )
+                    self.plot_refs["profs_lines"][j].show()
+            else:
+                # hide the line if not plotted
+                if self.plot_refs["profs_lines"][j] is not None:
+                    self.plot_refs["profs_lines"][j].hide()
         self.canvas.show()
 
         # plot absorption
-        absline = self.canvas3.plot(
-            self.obj_load.convEL, np.real(abs_cross), name="Abs", pen="red"
-        )
-        absline.setDownsampling(ds=True, auto=True, method="subsample")
-        flline = self.canvas3.plot(
-            self.obj_load.convEL, np.real(fl_cross), name="FL", pen="green"
-        )
-        flline.setDownsampling(ds=True, auto=True, method="subsample")
-        try:
-            absexpline = self.canvas3.plot(
-                self.obj_load.convEL,
-                self.obj_load.abs_exp[:, 1],
-                name="Abs expt.",
-                pen="blue",
+        if self.plot_refs["abs_line"] is None:
+            self.plot_refs["abs_line"] = self.canvas3.plot(
+                self.obj_load.convEL, np.real(abs_cross), name="Abs", pen="red"
             )
-            absexpline.setDownsampling(ds=True, auto=True, method="subsample")
+            self.plot_refs["abs_line"].setDownsampling(ds=True, auto=True, method="subsample")
+        else:
+            self.plot_refs["abs_line"].setData(self.obj_load.convEL, np.real(abs_cross))
+
+        if self.plot_refs["fl_line"] is None:
+            self.plot_refs["fl_line"] = self.canvas3.plot(
+                self.obj_load.convEL, np.real(fl_cross), name="FL", pen="green"
+            )
+            self.plot_refs["fl_line"].setDownsampling(ds=True, auto=True, method="subsample")
+        else:
+            self.plot_refs["fl_line"].setData(self.obj_load.convEL, np.real(fl_cross))
+
+        try:
+            if self.plot_refs["abs_exp_line"] is None:
+                self.plot_refs["abs_exp_line"] = self.canvas3.plot(
+                    self.obj_load.convEL,
+                    self.obj_load.abs_exp[:, 1],
+                    name="Abs expt.",
+                    pen="blue",
+                )
+                self.plot_refs["abs_exp_line"].setDownsampling(ds=True, auto=True, method="subsample")
+            else:
+                self.plot_refs["abs_exp_line"].setData(self.obj_load.convEL, self.obj_load.abs_exp[:, 1])
         except:
             print("No experimental absorption spectrum")
 
         try:
-            flexpline = self.canvas3.plot(
-                self.obj_load.convEL,
-                self.obj_load.fl_exp[:, 1],
-                name="FL expt.",
-                pen="yellow",
-            )
-            flexpline.setDownsampling(ds=True, auto=True, method="subsample")
+            if self.plot_refs["fl_exp_line"] is None:
+                self.plot_refs["fl_exp_line"] = self.canvas3.plot(
+                    self.obj_load.convEL,
+                    self.obj_load.fl_exp[:, 1],
+                    name="FL expt.",
+                    pen="yellow",
+                )
+                self.plot_refs["fl_exp_line"].setDownsampling(ds=True, auto=True, method="subsample")
+            else:
+                self.plot_refs["fl_exp_line"].setData(self.obj_load.convEL, self.obj_load.fl_exp[:, 1])
         except:
             print("No experimental fluorescence spectrum")
 
